@@ -12,7 +12,7 @@
     "node": ">=20"
   },
   "bin": {
-    "fast-browser": "./bin/fast-browser.js"
+    "fast-browser": "bin/fast-browser.js"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
