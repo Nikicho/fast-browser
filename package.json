@@ -1,6 +1,6 @@
 {
   "name": "fast-browser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A high-performance browser automation and site adapter framework for AI agents.",
   "license": "UNLICENSED",
   "files": [
@@ -23,7 +23,6 @@
   "dependencies": {
     "cheerio": "^1.1.2",
     "commander": "^14.0.1",
-    "fast-browser": "file:fast-browser-0.1.0.tgz",
     "inquirer": "^12.10.0",
     "pino": "^10.0.0",
     "puppeteer-core": "^24.39.1",
