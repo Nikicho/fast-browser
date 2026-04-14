@@ -1,0 +1,27 @@
+{
+  "id": "hot-to-question",
+  "kind": "flow",
+  "goal": "从知乎热榜进入问题详情页",
+  "steps": [
+    {
+      "type": "site",
+      "command": "zhihu/hot"
+    },
+    {
+      "type": "site",
+      "command": "zhihu/question",
+      "with": {
+        "questionId": 19581624
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "zhihu.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

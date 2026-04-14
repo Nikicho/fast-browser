@@ -1,0 +1,16 @@
+﻿{
+  "id": "auth-recovery-route-smoke",
+  "kind": "case",
+  "goal": "Verify OpenCart post-login workflow",
+  "uses": [
+    {
+      "flow": "auth-recovery-route",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

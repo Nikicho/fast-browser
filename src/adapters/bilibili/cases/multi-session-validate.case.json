@@ -1,0 +1,20 @@
+{
+  "id": "multi-session-validate",
+  "kind": "case",
+  "goal": "Verify Bilibili multi-session validation: public pages + favorites + tab switch.",
+  "uses": [
+    {
+      "flow": "multi-session-validate",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "bilibili.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

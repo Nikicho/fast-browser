@@ -1,0 +1,20 @@
+{
+  "id": "favorites-page-loads",
+  "kind": "case",
+  "goal": "Verify the logged-in Bilibili favorites page resolves and loads favorite videos.",
+  "uses": [
+    {
+      "flow": "open-favorites",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "/favlist"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

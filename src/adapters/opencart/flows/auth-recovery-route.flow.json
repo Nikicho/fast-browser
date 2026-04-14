@@ -1,0 +1,28 @@
+﻿{
+  "id": "auth-recovery-route",
+  "kind": "flow",
+  "goal": "Open OpenCart post-login product workflow",
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/index.php?route=catalog%2Fproduct"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "click",
+      "with": {
+        "target": {
+          "selector": "div:nth-of-type(1) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr:nth-of-type(3) > td:nth-of-type(8) > a:nth-of-type(1)"
+        }
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

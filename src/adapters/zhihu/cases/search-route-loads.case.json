@@ -1,0 +1,26 @@
+{
+  "id": "search-route-loads",
+  "kind": "case",
+  "goal": "Verify the Zhihu search route resolves for a keyword.",
+  "params": [
+    {
+      "name": "query",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "uses": [
+    {
+      "flow": "search-question",
+      "with": {
+        "query": "${params.query}"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "zhihu.com/search"
+    }
+  ]
+}

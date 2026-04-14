@@ -1,0 +1,54 @@
+{
+  "id": "search",
+  "kind": "flow",
+  "goal": "Search Google and extract results using browser",
+  "params": [
+    {
+      "name": "query",
+      "type": "string",
+      "required": true,
+      "description": "Search query"
+    },
+    {
+      "name": "limit",
+      "type": "number",
+      "required": false,
+      "description": "Max results to return",
+      "defaultValue": 10
+    }
+  ],
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://www.google.com/search?q=${params.query}&hl=en"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": "h3",
+        "state": "visible"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "wait",
+      "with": {
+        "ms": 500
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "selectorCountAtLeast",
+      "selector": "h3",
+      "count": 3
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

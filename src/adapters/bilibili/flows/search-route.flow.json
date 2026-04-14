@@ -1,0 +1,30 @@
+{
+  "id": "search-route",
+  "kind": "flow",
+  "goal": "Open a Bilibili search route and confirm result cards load.",
+  "params": [
+    {
+      "name": "query",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "type": "site",
+      "command": "bilibili/search",
+      "with": {
+        "query": "${params.query}"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "search.bilibili.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

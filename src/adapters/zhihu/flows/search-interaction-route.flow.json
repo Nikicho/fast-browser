@@ -1,0 +1,36 @@
+{
+  "id": "search-interaction-route",
+  "kind": "flow",
+  "goal": "Run a Zhihu search interaction flow",
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://www.zhihu.com"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#Popover1-toggle"
+        },
+        "value": "人工智能的影响"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Enter"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

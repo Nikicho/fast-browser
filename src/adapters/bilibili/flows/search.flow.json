@@ -1,0 +1,40 @@
+{
+  "id": "search",
+  "kind": "flow",
+  "goal": "search videos by keyword",
+  "params": [],
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://search.bilibili.com/"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": "input:nth-of-type(1)",
+        "state": "visible"
+      }
+    },
+    {
+      "type": "site",
+      "command": "bilibili/search"
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "/"
+    },
+    {
+      "type": "selectorVisible",
+      "value": "input:nth-of-type(1)"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

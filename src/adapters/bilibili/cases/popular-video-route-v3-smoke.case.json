@@ -1,0 +1,16 @@
+{
+  "id": "popular-video-route-v3-smoke",
+  "kind": "case",
+  "goal": "Verify Bilibili popular to video route with deduped stable entry",
+  "uses": [
+    {
+      "flow": "popular-video-route-v3",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

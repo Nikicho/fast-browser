@@ -1,0 +1,49 @@
+{
+  "id": "zhihu",
+  "displayName": "Zhihu",
+  "version": "0.1.0",
+  "platform": "zhihu",
+  "description": "Login-aware Zhihu adapter for hot, search, and question entry points.",
+  "homepage": "https://www.zhihu.com",
+  "defaultTtlMs": 90000,
+  "sessionPolicy": "optional",
+  "commands": [
+    {
+      "name": "hot",
+      "description": "Open the Zhihu hot page and detect whether content is available or login is required.",
+      "args": [],
+      "example": "fast-browser site zhihu/hot",
+      "cacheable": false
+    },
+    {
+      "name": "search",
+      "description": "Open Zhihu search for a keyword and detect whether results are available or login is required.",
+      "args": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Search keyword.",
+          "defaultValue": "fast-browser"
+        }
+      ],
+      "example": "fast-browser site zhihu/search --query fast-browser",
+      "cacheable": false
+    },
+    {
+      "name": "question",
+      "description": "Open a Zhihu question page and summarize the visible state or anti-bot response.",
+      "args": [
+        {
+          "name": "questionId",
+          "type": "number",
+          "required": true,
+          "description": "Zhihu question id.",
+          "defaultValue": 19581624
+        }
+      ],
+      "example": "fast-browser site zhihu/question --questionId 19581624",
+      "cacheable": false
+    }
+  ]
+}

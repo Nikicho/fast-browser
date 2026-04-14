@@ -1,0 +1,20 @@
+{
+  "id": "open-hot",
+  "kind": "flow",
+  "goal": "Open Zhihu hot route and confirm the page resolves to a Zhihu endpoint.",
+  "steps": [
+    {
+      "type": "site",
+      "command": "zhihu/hot"
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "zhihu.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

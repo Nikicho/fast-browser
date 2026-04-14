@@ -1,0 +1,20 @@
+{
+  "id": "hot-page-loads",
+  "kind": "case",
+  "goal": "Verify the Zhihu hot entry route resolves to a live page.",
+  "uses": [
+    {
+      "flow": "open-hot",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "zhihu.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

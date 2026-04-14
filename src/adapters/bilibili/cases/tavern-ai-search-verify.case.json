@@ -1,0 +1,23 @@
+{
+  "id": "tavern-ai-search-verify",
+  "kind": "case",
+  "goal": "Verify tavern ai search on Bilibili loads video results.",
+  "uses": [
+    {
+      "flow": "tavern-ai-video-explore",
+      "with": {
+        "query": "tavern ai",
+        "bvid": "BV1R8UsBUEKi"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "bilibili.com/video"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

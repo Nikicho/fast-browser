@@ -1,0 +1,36 @@
+{
+  "id": "explore-multi-question",
+  "kind": "flow",
+  "goal": "Open multiple Zhihu question pages and verify they load correctly.",
+  "params": [
+    {
+      "name": "questionId",
+      "type": "string",
+      "required": true,
+      "description": "Zhihu question ID"
+    }
+  ],
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://www.zhihu.com/question/${params.questionId}",
+        "headless": false
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "wait",
+      "with": {
+        "ms": 5000
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "zhihu.com/question"
+    }
+  ]
+}

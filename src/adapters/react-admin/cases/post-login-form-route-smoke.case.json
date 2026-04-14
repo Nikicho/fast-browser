@@ -1,0 +1,16 @@
+﻿{
+  "id": "post-login-form-route-smoke",
+  "kind": "case",
+  "goal": "Verify React Admin post-login workflow",
+  "uses": [
+    {
+      "flow": "post-login-form-route",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

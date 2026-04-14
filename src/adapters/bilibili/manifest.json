@@ -1,0 +1,71 @@
+{
+  "id": "bilibili",
+  "displayName": "Bilibili",
+  "version": "1.0.0",
+  "platform": "bilibili",
+  "description": "Bilibili adapter for search, popular, and video routes using the real browser runtime.",
+  "homepage": "https://www.bilibili.com",
+  "defaultTtlMs": 90000,
+  "sessionPolicy": "optional",
+  "commands": [
+    {
+      "name": "favorites",
+      "description": "Open the logged-in user's Bilibili favorites page and summarize visible video cards.",
+      "args": [],
+      "example": "fast-browser site bilibili/favorites",
+      "cacheable": false
+    },
+    {
+      "name": "search",
+      "description": "Open a Bilibili search route and summarize visible video results.",
+      "args": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Search keyword.",
+          "defaultValue": "tavern ai"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "required": false,
+          "description": "Search results page.",
+          "defaultValue": 1
+        }
+      ],
+      "example": "fast-browser site bilibili/search --query tavern ai --page 1",
+      "cacheable": false
+    },
+    {
+      "name": "popular",
+      "description": "Open the Bilibili popular page and summarize visible ranking cards.",
+      "args": [
+        {
+          "name": "page",
+          "type": "number",
+          "required": false,
+          "description": "Popular page number.",
+          "defaultValue": 1
+        }
+      ],
+      "example": "fast-browser site bilibili/popular --page 1",
+      "cacheable": false
+    },
+    {
+      "name": "video",
+      "description": "Open a Bilibili video page by BVID and summarize the visible state.",
+      "args": [
+        {
+          "name": "bvid",
+          "type": "string",
+          "required": true,
+          "description": "Video BVID.",
+          "defaultValue": "BV1xx411c7mD"
+        }
+      ],
+      "example": "fast-browser site bilibili/video --bvid BV1xx411c7mD",
+      "cacheable": false
+    }
+  ]
+}

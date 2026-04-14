@@ -1,0 +1,20 @@
+{
+  "id": "hot-to-question-validation",
+  "kind": "case",
+  "goal": "验证从热榜进入问题详情页的流程",
+  "uses": [
+    {
+      "flow": "hot-to-question",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "zhihu.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

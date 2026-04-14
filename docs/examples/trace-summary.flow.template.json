@@ -1,0 +1,45 @@
+﻿{
+  "id": "replace-me",
+  "kind": "flow",
+  "goal": "Describe the goal of this reusable flow",
+  "params": [
+    {
+      "name": "replace_param",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://example.com"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": "main",
+        "state": "visible"
+      }
+    },
+    {
+      "type": "site",
+      "command": "demo/replace-command",
+      "with": {
+        "replace_param": "${params.replace_param}"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "selectorVisible",
+      "selector": "main"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

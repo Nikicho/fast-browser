@@ -1,0 +1,16 @@
+﻿{
+  "id": "filter-create-route-a2-smoke",
+  "kind": "case",
+  "goal": "Verify React Admin filter to create form route",
+  "uses": [
+    {
+      "flow": "filter-create-route-a2",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

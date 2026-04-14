@@ -1,0 +1,16 @@
+{
+  "id": "popular-video-route-smoke",
+  "kind": "case",
+  "goal": "Verify Bilibili popular to video route",
+  "uses": [
+    {
+      "flow": "popular-video-route",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

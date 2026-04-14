@@ -1,0 +1,18 @@
+{
+  "id": "replace-me",
+  "kind": "flow",
+  "goal": "Describe the reusable multi-step goal",
+  "params": [
+    { "name": "replaceParam", "type": "string", "required": false }
+  ],
+  "steps": [
+    {
+      "type": "site",
+      "command": "replace-site/replace-command",
+      "with": {}
+    }
+  ],
+  "success": [
+    { "type": "titleNotEmpty" }
+  ]
+}

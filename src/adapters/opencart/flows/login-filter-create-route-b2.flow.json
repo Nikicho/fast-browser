@@ -1,0 +1,136 @@
+﻿{
+  "id": "login-filter-create-route-b2",
+  "kind": "flow",
+  "goal": "Login to OpenCart admin, filter list, and open create form",
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-username"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-password"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Enter"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "wait",
+      "with": {
+        "ms": 2000
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": "button[type=submit]",
+        "state": "visible",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/index.php?route=catalog/product&user_token=YEgeJ41W0naWFPv28BOtVsqTepOWHvrO"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "div:nth-of-type(1) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > td:nth-of-type(1) > input:nth-of-type(1)"
+        },
+        "value": "Apple"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Enter"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/index.php?route=catalog/product&user_token=YEgeJ41W0naWFPv28BOtVsqTepOWHvrO"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabNew",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/index.php?route=catalog/product/add&user_token=YEgeJ41W0naWFPv28BOtVsqTepOWHvrO"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-name1"
+        },
+        "value": "Test Product"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-meta-title1"
+        },
+        "value": "Test Meta Title"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "click",
+      "with": {
+        "target": {
+          "selector": "#input-meta-description1"
+        }
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "previous"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

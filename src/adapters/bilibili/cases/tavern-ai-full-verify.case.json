@@ -1,0 +1,23 @@
+{
+  "id": "tavern-ai-full-verify",
+  "kind": "case",
+  "goal": "Verify tavern ai search, video detail, and popular page flow on Bilibili.",
+  "uses": [
+    {
+      "flow": "tavern-ai-full-explore",
+      "with": {
+        "query": "tavern ai",
+        "bvid": "BV14r62BGEvx"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "bilibili.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

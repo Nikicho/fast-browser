@@ -1,0 +1,42 @@
+{
+  "id": "tavern-ai-video-explore",
+  "kind": "flow",
+  "goal": "Search tavern ai on Bilibili and enter a video detail page.",
+  "params": [
+    {
+      "name": "query",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "bvid",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "type": "site",
+      "command": "bilibili/search",
+      "with": {
+        "query": "${params.query}"
+      }
+    },
+    {
+      "type": "site",
+      "command": "bilibili/video",
+      "with": {
+        "bvid": "${params.bvid}"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "bilibili.com/video"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

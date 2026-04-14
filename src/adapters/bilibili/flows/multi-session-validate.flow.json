@@ -1,0 +1,35 @@
+{
+  "id": "multi-session-validate",
+  "kind": "flow",
+  "goal": "Validate Bilibili multi-session: public pages + logged-in favorites with tab switching.",
+  "steps": [
+    {
+      "type": "site",
+      "command": "bilibili/popular",
+      "with": {
+        "page": 1
+      }
+    },
+    {
+      "type": "site",
+      "command": "bilibili/video",
+      "with": {
+        "bvid": "BV1MN4y177PB"
+      }
+    },
+    {
+      "type": "site",
+      "command": "bilibili/favorites",
+      "with": {}
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "bilibili.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

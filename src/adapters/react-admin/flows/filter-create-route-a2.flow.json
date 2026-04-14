@@ -1,0 +1,168 @@
+﻿{
+  "id": "filter-create-route-a2",
+  "kind": "flow",
+  "goal": "Open React Admin list, filter rows, and reach create form",
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://marmelab.com/react-admin-demo/"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabNew",
+      "with": {
+        "url": "https://marmelab.com/react-admin-demo/#/customers"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "previous"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "input:nth-of-type(1)"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "form input"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Tab"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "click",
+      "with": {
+        "target": {
+          "selector": "button"
+        }
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "wait",
+      "with": {
+        "ms": 2000
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "wait",
+      "with": {
+        "ms": 3000
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "input[name='password']"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Enter"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "[class*='filter'] input:nth-of-type(1)"
+        },
+        "value": "a"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Enter"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "lastCreated"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://marmelab.com/react-admin-demo/#/products/create"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "input:nth-of-type(1)"
+        },
+        "value": "Awesome Poster"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "input[name='price']"
+        },
+        "value": "19.99"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "input[name='stock']"
+        },
+        "value": "50"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "lastCreated"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "react-admin",
+  "displayName": "React Admin",
+  "version": "0.1.0",
+  "platform": "react-admin",
+  "description": "React Admin Demo - list filter and create form navigation.",
+  "homepage": "https://marmelab.com/react-admin-demo/",
+  "defaultTtlMs": 90000,
+  "sessionPolicy": "required"
+}

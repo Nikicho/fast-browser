@@ -1,0 +1,14 @@
+{
+  "id": "replace-me",
+  "kind": "case",
+  "goal": "Describe the validation scenario",
+  "uses": [
+    {
+      "flow": "replace-flow",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    { "type": "titleNotEmpty" }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "popular-video-route",
+  "kind": "flow",
+  "goal": "Open Bilibili popular page and video detail",
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "tabNew",
+      "with": {
+        "url": "https://www.bilibili.com/video/BV1xx411c7mD"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "previous"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "lastCreated"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

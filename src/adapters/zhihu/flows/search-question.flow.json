@@ -1,0 +1,27 @@
+{
+  "id": "search-question",
+  "kind": "flow",
+  "goal": "Open Zhihu search for a keyword and confirm the route resolves.",
+  "params": [
+    {
+      "name": "query",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "type": "site",
+      "command": "zhihu/search",
+      "with": {
+        "query": "${params.query}"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "zhihu.com/search"
+    }
+  ]
+}

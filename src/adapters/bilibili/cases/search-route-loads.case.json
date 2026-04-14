@@ -1,0 +1,22 @@
+{
+  "id": "search-route-loads",
+  "kind": "case",
+  "goal": "Verify the Bilibili search route resolves to a live page.",
+  "uses": [
+    {
+      "flow": "search-route",
+      "with": {
+        "query": "tavern ai"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "search.bilibili.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

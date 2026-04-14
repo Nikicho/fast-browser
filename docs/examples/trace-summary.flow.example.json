@@ -1,0 +1,58 @@
+﻿{
+  "id": "search-open-first-detail",
+  "kind": "flow",
+  "goal": "Search with a keyword and open the first detail page",
+  "params": [
+    {
+      "name": "query",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://example.com/search"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": "form[role=\"search\"]",
+        "state": "visible"
+      }
+    },
+    {
+      "type": "site",
+      "command": "example/search",
+      "with": {
+        "query": "${params.query}"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": ".result-list",
+        "state": "visible"
+      }
+    },
+    {
+      "type": "site",
+      "command": "example/openFirstResult",
+      "with": {}
+    }
+  ],
+  "success": [
+    {
+      "type": "selectorVisible",
+      "selector": ".detail-page"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

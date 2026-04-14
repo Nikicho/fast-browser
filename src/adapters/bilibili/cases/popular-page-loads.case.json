@@ -1,0 +1,20 @@
+{
+  "id": "popular-page-loads",
+  "kind": "case",
+  "goal": "Verify the Bilibili popular route resolves to a live page.",
+  "uses": [
+    {
+      "flow": "open-popular",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "urlIncludes",
+      "value": "bilibili.com"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

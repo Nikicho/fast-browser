@@ -1,0 +1,20 @@
+{
+  "id": "open-favorites",
+  "kind": "flow",
+  "goal": "Open the logged-in user's Bilibili favorites page and confirm favorite videos load.",
+  "steps": [
+    {
+      "type": "site",
+      "command": "bilibili/favorites"
+    }
+  ],
+  "success": [
+    {
+      "type": "urlIncludes",
+      "value": "/favlist"
+    },
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

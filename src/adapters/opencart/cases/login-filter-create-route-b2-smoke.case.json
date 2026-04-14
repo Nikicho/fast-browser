@@ -1,0 +1,16 @@
+﻿{
+  "id": "login-filter-create-route-b2-smoke",
+  "kind": "case",
+  "goal": "Verify OpenCart login, list filter, and create form route",
+  "uses": [
+    {
+      "flow": "login-filter-create-route-b2",
+      "with": {}
+    }
+  ],
+  "assertions": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

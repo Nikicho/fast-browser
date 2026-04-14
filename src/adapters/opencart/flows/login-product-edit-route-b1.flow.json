@@ -1,0 +1,185 @@
+﻿{
+  "id": "login-product-edit-route-b1",
+  "kind": "flow",
+  "goal": "Login to OpenCart admin and open product edit form",
+  "steps": [
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-username"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-password"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Enter"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-username"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-password"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-password"
+        },
+        "value": "demo"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Tab"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Enter"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/index.php?route=common/dashboard"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": "button[type=submit]",
+        "state": "visible",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "click",
+      "with": {
+        "target": {
+          "selector": "button[type=submit]"
+        }
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/index.php?route=catalog/product&user_token=emyd2tFMbBD51Ny1TnQ0edyivdGS4VoZ"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabNew",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/index.php?route=catalog/product&user_token=emyd2tFMbBD51Ny1TnQ0edyivdGS4VoZ"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "previous"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": "table tbody tr:nth-of-type(1) td:nth-of-type(8) a",
+        "state": "visible",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "open",
+      "with": {
+        "url": "https://demo.opencartmarketplace.com/d1/oc_demo/demo_2/admin/index.php?route=catalog/product/edit&user_token=emyd2tFMbBD51Ny1TnQ0edyivdGS4VoZ&product_id=42"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "fill",
+      "with": {
+        "target": {
+          "selector": "#input-meta-title1"
+        },
+        "value": "Apple Cinema HD Display - Updated v2"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "waitForSelector",
+      "with": {
+        "selector": "form ul li:nth-of-type(2) a",
+        "state": "visible",
+        "timeoutMs": 15000
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "press",
+      "with": {
+        "key": "Tab"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "lastCreated"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

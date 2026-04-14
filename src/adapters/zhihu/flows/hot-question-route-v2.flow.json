@@ -1,0 +1,43 @@
+{
+  "id": "hot-question-route-v2",
+  "kind": "flow",
+  "goal": "Open Zhihu hot page and question detail from stable entry",
+  "steps": [
+    {
+      "type": "site",
+      "command": "zhihu/hot",
+      "with": {}
+    },
+    {
+      "type": "site",
+      "command": "zhihu/hot",
+      "with": {}
+    },
+    {
+      "type": "builtin",
+      "command": "tabNew",
+      "with": {
+        "url": "https://www.zhihu.com/question/19581624"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "previous"
+      }
+    },
+    {
+      "type": "builtin",
+      "command": "tabSwitch",
+      "with": {
+        "target": "lastCreated"
+      }
+    }
+  ],
+  "success": [
+    {
+      "type": "titleNotEmpty"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+display_name: Fast-Browser Agent
+short_description: Use the local Fast-Browser CLI to operate websites and grow reusable adapters, flows, and cases.
+default_prompt: Use Fast-Browser to complete the requested website task. Prefer existing case, flow, or site commands before low-level browser commands, and save reusable adapters, flows, and cases into the active Fast-Browser workspace rather than the skill directory.
