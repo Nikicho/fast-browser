@@ -1,12 +1,12 @@
 ﻿# Fast-Browser Skill 安装说明
 
-这份文档面向需要让 agent 正确使用 `fast-browser` 的维护者。
+这份文档写给 Agent。
 
 仓库内已经提供了一个可直接复用的 skill 目录：
 
 - [fast-browser-agent-skill/SKILL.md](../fast-browser-agent-skill/SKILL.md)
 
-它的目标不是替代 CLI，而是约束 agent 以正确方式使用 CLI。
+它的目标不是替代 CLI，而是让 Agent 以正确方式使用 CLI。
 
 实际阅读顺序应是：先看 skill，再按需查 CLI 命令手册。
 
@@ -86,10 +86,12 @@ fast-browser health
 
 ## 推荐搭配
 
-给 agent / 维护者的文档入口建议保留这 3 份：
+如果你是 Agent，建议只保留这 3 个入口：
 
 - [安装 CLI](./install-cli.md)
 - [安装 Skill](./install-skills.md)
 - [CLI 命令手册](./cli-reference.md)
 
-至于行为约束、交互策略和工作方式，维护者直接看仓库内的 skill 即可。
+至于行为约束、交互策略和工作方式，直接看仓库内的 skill 即可，不要再从公开 README 猜执行规则。
+
+

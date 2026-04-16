@@ -19,7 +19,11 @@ Fast-Browser 适合这类工作：
 
 当前版本要求 `Node.js 20+`。
 
-## 安装与快速确认
+## Installation
+
+### For Humans
+
+如果你只是想开始使用 Fast-Browser，最简单的安装方式是：
 
 ```bash
 npm install -g fast-browser
@@ -29,9 +33,28 @@ fast-browser workspace --json
 fast-browser list
 ```
 
-如果你在另一台机器上安装，建议优先使用官方 npm 源；如果镜像站缓存滞后，可能拉到旧包。
+如果你本来就是通过 agent 来操作网站，更省事的方式通常不是自己研究参数，而是直接把下面这段话发给 agent：
 
-完整安装说明见：[docs/install-cli.md](docs/install-cli.md)
+```text
+请先安装并检查 fast-browser，然后做一次 preflight。确认 workspace、browser 状态和已有能力。优先复用 case、flow、site command；只有高层能力不够时才回退到低层浏览器命令。
+```
+
+给人看的入口：
+
+- [安装 CLI](docs/install-cli.md)
+- [人类操作手册](docs/HUMAN_OPERATOR_GUIDE.md)
+- [CLI 完整命令手册](docs/cli-reference.md)
+
+### For Agent
+
+如果你是 Agent，不要从这份 README 继续往下读实现细节。直接按这个顺序工作：
+
+1. 先看 [安装 CLI](docs/install-cli.md)
+2. 再看 [安装 Fast-Browser Skill](docs/install-skills.md)
+3. 再读 [仓库内 skill 入口](fast-browser-agent-skill/SKILL.md)
+4. 需要查参数时再看 [CLI 完整命令手册](docs/cli-reference.md)
+
+如果你在另一台机器上安装，建议优先使用官方 npm 源；如果镜像站缓存滞后，可能拉到旧包。
 
 ## 人类最常用的协作方式
 
@@ -62,20 +85,6 @@ fast-browser list
 
 完整的人类操作说明见：[docs/HUMAN_OPERATOR_GUIDE.md](docs/HUMAN_OPERATOR_GUIDE.md)
 
-## 文档导航
-
-面向人类：
-
-- [安装 CLI](docs/install-cli.md)
-- [人类操作手册](docs/HUMAN_OPERATOR_GUIDE.md)
-- [CLI 完整命令手册](docs/cli-reference.md)
-
-面向 agent / 维护者：
-
-- [安装 CLI](docs/install-cli.md)
-- [安装 Fast-Browser Skill](docs/install-skills.md)
-- [仓库内 skill 入口](fast-browser-agent-skill/SKILL.md)
-
 ## 对外支持范围
 
 当前对外承诺支持的公开表面，以这两处为准：
@@ -96,3 +105,4 @@ fast-browser list
 - Node 要求：`>=20`
 
 如果你在 `Node 18` 上遇到 `File is not defined`、`undici` 相关报错，这不是推荐支持环境；请升级到 Node 20+。
+

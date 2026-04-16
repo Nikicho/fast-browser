@@ -3,7 +3,7 @@
 这份文档面向两类读者：
 
 - 人类操作者：想在自己的机器上安装 `fast-browser`
-- agent 维护者：想先装好 CLI，再让 agent 去调用它
+- Agent：想先装好 CLI，再在后续任务里调用它
 
 ## 环境要求
 
@@ -95,4 +95,6 @@ npm run typecheck
 安装 CLI 之后：
 
 - 如果你是人类操作者，继续看 [人类操作手册](./HUMAN_OPERATOR_GUIDE.md)
-- 如果你是 agent 维护者，继续看 [安装 Fast-Browser Skill](./install-skills.md) 和仓库内的 `fast-browser-agent-skill/SKILL.md`
+- 如果你是 Agent，继续看 [安装 Fast-Browser Skill](./install-skills.md) 和仓库内的 `fast-browser-agent-skill/SKILL.md`
+
+
