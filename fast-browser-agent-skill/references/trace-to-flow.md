@@ -1,84 +1,114 @@
-# Trace To Flow
+# 从 Trace 提炼 Flow
 
-Use `fast-browser trace current --json` to decide when a successful path should become a new flow.
+使用 `fast-browser trace current --json` 判断一次成功路径里，哪些步骤应该沉淀成新的 `flow`。
 
-## Input Rule
+## 正式输入
 
-Always start from the distilled `trace current` result, not from raw `trace latest` output and not from chat memory.
+始终从清洗后的 `trace current` 出发，不要依赖原始 `trace latest`，也不要依赖聊天上下文回忆。
 
-Read these fields first:
-- `status`
+优先看：
+
 - `entries[]`
 - `discarded[]`
 - `checkpoints[]`
-- `entries[].signal`
 - `entries[].locator`
+- `entries[].signal`
+- `entries[].flowSafe`
+- `entries[].commandCandidate`
 
-## When to Create a Flow
+## 什么时候应该提炼成 Flow
 
-Create a `flow` when the successful path is:
-- multi-step
-- repeated often
-- meaningful as one named goal
+当成功路径满足下面这些条件时，适合沉淀成 `flow`：
 
-Examples:
-- search and open first result
-- login and open orders
-- search product and add first result to cart
+- 多步
+- 后面还会重复执行
+- 本身可以表达为一个有意义的目标
 
-## Cleaning Trace Data
+典型例子：
 
-Before turning trace data into a flow:
-- remove failed branches
-- remove retries that were only recovery noise
-- keep only the final successful path
-- keep only steps necessary for the goal
-- prefer already-distilled `trace current.entries[]`; do not rebuild the path from raw markers by hand
+- 搜索并打开第一条结果
+- 登录后进入订单页
+- 搜索商品并加入购物车
+- 先调用 `site`，再把前一步产出的 id / url 传给后一步
 
-## Flow Constraints
+如果一段路径更像“原子站点能力”，应先提升成 `command`，再由 `flow` 复用它。
 
-Current flow DSL supports:
-- `site` steps
-- builtin `open`
-- builtin `wait`
-- builtin `waitForSelector`
-- success assertions
+## 当前 Flow DSL 边界
 
-Current flow DSL does not support:
-- `snapshot`
-- `eval`
+当前允许直接进入正式 `flow` 的 builtin：
+
+- `open`
+- `wait`
+- `waitForSelector`
+- `tabNew`
+- `tabSwitch`
 - `click`
 - `fill`
-- `type`
 - `press`
+
+当前不要直接进入正式 `flow` 的内容：
+
+- `snapshot`
+- `eval`
+- `type`
 - `hover`
-- `if/else`
-- loops
-- parallel steps
-- rollback
+- 裸 `@eN`
+- 真实 `tabId`
+- 失败分支、重试噪音、偶然绕路
 
-Interpretation rule:
-- if a trace step has `flowSafe: true`, it may be represented directly in the saved flow
-- if a trace step has `flowSafe: false`, do not put that low-level step into the saved flow
-- if a trace step has `commandCandidate: true`, promote it to an adapter command first when it is stable enough
-- if a trace step only shows a DOM action but no page-level success signal, prefer promoting a stable `command` instead of preserving the low-level action idea
+额外约束：
 
-If trace contains `snapshot`, keep it only as exploration evidence. Do not carry it into the saved `flow` definition.
+- `tabSwitch` 只保存相对语义，例如 `previous`、`lastCreated`
+- `click / fill / press` 只有在 target 能稳定表达时才进入正式 `flow`
+- 如果一个交互步骤只有 DOM 动作，没有页面级成功信号，应优先考虑提升成稳定 `command`
 
-## Output Form
+## 清洗规则
 
-Save the result as `flows/<name>.flow.json` and validate it with:
+在把 trace 变成 `flow` 之前：
+
+- 去掉失败分支
+- 去掉只是恢复噪音的重试
+- 只保留最终成功路径
+- 只保留完成目标所必需的步骤
+- 能直接使用 `trace current.entries[]` 的结果时，不要手工重建路径
+
+## 判断规则
+
+- `flowSafe: true`：这个步骤可以直接考虑进入 `flow`
+- `flowSafe: false`：不要把这个低层步骤直接写进正式 `flow`
+- `commandCandidate: true`：如果步骤足够稳定，优先先提炼成 adapter `command`
+
+如果 trace 里出现 `snapshot`，只把它当作探索证据，不要带入正式定义。
+
+## 正式沉淀路径
+
+从 trace 生成：
+
+```bash
+fast-browser flow save --site <site> --from-trace --id <flowId> --goal "<goal>"
+```
+
+从文件保存：
 
 ```bash
 fast-browser flow save --site <site> --file <flow.json>
+```
+
+保存后必须验证：
+
+```bash
 fast-browser flow list <site>
 fast-browser flow run <site>/<flow> --input '{...}'
 ```
 
-A `flow` is not considered saved unless:
-- the JSON file exists under the active workspace
-- `flow list` can see it
-- `flow run` succeeds
-## Acceptance Boundary
+一个 `flow` 只有满足下面条件才算真正保存成功：
 
-If external site-specific tools were used during exploration, the resulting flow is only `exploration-assisted` until the final path is rerun through Fast-Browser itself.
+- 文件位于活动 workspace 下
+- `flow list` 可以看到它
+- `flow run` 重新跑通
+
+## 验收边界
+
+如果探索过程中借助了外部站点专用工具，结果只能算 `exploration-assisted`。
+
+只有当最终路径通过 Fast-Browser 自己的 `flow run` 或相关 CLI 路径重新跑通，才算真正完成 flow 沉淀。

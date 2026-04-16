@@ -8,3 +8,4 @@ _review_ses_*.json
 _tmp*
 *.tgz
 tmp-publish-verify/
+docs-internal/

@@ -1,18 +1,19 @@
-# Storage Location
+﻿# 资产保存位置
 
-Fast-Browser reusable assets do not live inside this skill package.
+Fast-Browser 的可复用资产，不应该保存在 skill 包目录里。
 
-## Rule
+## 先分清两种目录
 
-Always distinguish between:
-- skill install directory: where this skill is stored for the current coding tool
-- Fast-Browser workspace: the directory where `fast-browser` is being run and where reusable assets must be saved
+始终区分下面两个位置：
 
-Only the second one matters for adapters, flows, and cases.
+- skill 安装目录：当前编码工具保存这份 skill 的地方
+- Fast-Browser workspace：`fast-browser` 实际运行、并且 adapter / flow / case 应落地的地方
 
-## Where assets belong
+只有第二个位置才是正式资产目录。
 
-Save reusable assets into the active Fast-Browser workspace:
+## 正式资产应该保存到哪里
+
+应保存到活动 Fast-Browser workspace：
 
 ```text
 <workspace>/src/adapters/<site>/manifest.json
@@ -21,56 +22,66 @@ Save reusable assets into the active Fast-Browser workspace:
 <workspace>/src/adapters/<site>/cases/*.case.json
 ```
 
-Current Fast-Browser CLI behavior resolves custom adapters relative to the active workspace, not relative to the skill directory.
+当前 CLI 会相对活动 workspace 解析自定义 adapter，而不是相对 skill 目录解析。
 
-Resolution order:
-- `FAST_BROWSER_ROOT` if set
-- otherwise the current Fast-Browser CLI package root
+解析顺序：
 
-## Use the CLI as the source of truth
+- 如果设置了 `FAST_BROWSER_ROOT`，优先使用它
+- 否则使用当前 Fast-Browser CLI 包根目录
 
-Before scaffolding or saving anything, run:
+## 以 CLI 为唯一准绳
+
+在 scaffold 或保存任何资产前，先执行：
 
 ```bash
 fast-browser workspace --json
 ```
 
-Read `projectRoot` and `adaptersDir` from that output. Do not infer the save location from the skill path, your editor tab, or a remembered repo path.
+从输出里读取：
 
-## Tool-specific skill dirs are not asset dirs
+- `projectRoot`
+- `adaptersDir`
 
-Different coding tools may install this skill in different places, for example:
-- Codex: tool-specific skill directory
-- Claude Code: tool-specific skill directory
-- OpenCode: `~/.config/opencode/skills`
+不要根据 skill 路径、编辑器当前打开的标签页，或记忆里的仓库路径去猜保存位置。
 
-Those locations are for reading the skill only. Do not scaffold adapters there unless that directory is also the active Fast-Browser workspace.
+## 各工具的 skill 目录不是资产目录
 
-## Practical check
+不同编码工具可能把这份 skill 安装在不同位置，例如：
 
-Before scaffolding or saving:
-1. run `fast-browser workspace --json`
-2. confirm that `projectRoot` matches the Fast-Browser CLI package you intend to use
-3. confirm that `adaptersDir` is where reusable assets should land
-4. keep the skill package unchanged except when updating instructions/templates
+- Codex：工具自己的 skill 目录
+- Claude Code：工具自己的 skill 目录
+- OpenCode：`~/.config/opencode/skills`
 
-## Wrong vs right
+这些目录只是用来读取 skill 的。除非它碰巧也是当前 Fast-Browser workspace，否则不要把 adapter scaffold 到那里。
 
-Wrong:
-- saving `src/adapters/<site>` under the skill package because the skill file is open there
-- saving `src/adapters/<site>` under some unrelated repo because the browser task notes are open there
+## 实际检查顺序
 
-Right:
-- saving `src/adapters/<site>` under the `adaptersDir` reported by `fast-browser workspace --json`
+在 scaffold 或保存前：
 
-## Browser profile and browser runtime state
+1. 运行 `fast-browser workspace --json`
+2. 确认 `projectRoot` 是你想使用的 Fast-Browser CLI 包根目录
+3. 确认 `adaptersDir` 就是正式资产应落地的目录
+4. 除非你是在维护 skill 本身，否则不要改 skill 包目录
 
-Adapters, flows, and cases are workspace assets.
+## 错误与正确示例
 
-Browser login state is different:
-- Fast-Browser now uses one user-level shared browser profile by default
-- default profile dir: `%USERPROFILE%\\.fast-browser\\chrome-profile`
-- default browser runtime state file: `%USERPROFILE%\\.fast-browser\\sessions\\browser-state.json`
+错误：
 
-This means different coding tools can share the same browser login state as long as they run the same installed Fast-Browser CLI on the same machine.
+- 因为当前打开的是 skill 文件，就把 `src/adapters/<site>` 保存到 skill 包目录
+- 因为浏览器任务笔记开在另一个仓库，就把 `src/adapters/<site>` 保存到那个无关仓库
 
+正确：
+
+- 始终把 `src/adapters/<site>` 保存到 `fast-browser workspace --json` 返回的 `adaptersDir` 下
+
+## 浏览器登录态与运行时状态
+
+adapter、flow、case 是 workspace 资产。
+
+浏览器登录态是另一类东西：
+
+- Fast-Browser 默认使用用户级共享浏览器 profile
+- 默认 profile 目录：`%USERPROFILE%\.fast-browser\chrome-profile`
+- 默认浏览器运行时状态文件：`%USERPROFILE%\.fast-browser\sessions\browser-state.json`
+
+这意味着：只要在同一台机器上使用同一个已安装的 Fast-Browser CLI，不同编码工具之间可以共享浏览器登录态。

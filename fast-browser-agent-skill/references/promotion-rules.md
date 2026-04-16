@@ -1,19 +1,23 @@
-# Promotion Rules
+﻿# 提升规则
 
-Fast-Browser gets faster only when successful work is promoted into reusable assets.
+Fast-Browser 只有在成功路径被提升成可复用资产后，才会越来越快。
 
-## Save-Time Source of Truth
+## 保存时唯一证据
 
-Before creating or updating any `command`, `flow`, or `case`, run:
+创建或更新 `command / flow / case` 之前，先执行：
 
 ```bash
 fast-browser trace current --json
 ```
 
-Use that distilled trace as the primary evidence.
-Do not rely on chat memory or raw `trace latest` output when `trace current` is available.
+当 `trace current` 可用时，不要依赖：
 
-When present, inspect:
+- 聊天上下文
+- 原始 `trace latest`
+- 运行时口头总结
+
+优先看：
+
 - `locator.resolvedSelector`
 - `locator.selectorCandidates`
 - `signal.urlChanged`
@@ -21,88 +25,92 @@ When present, inspect:
 - `flowSafe`
 - `commandCandidate`
 
-## Promote to Command
+## 什么时候提升成 Command
 
-Promote a step to adapter `command` when it is:
-- stable
-- atomic
-- site-specific
-- parameterizable with a small argument set
+当一步操作满足下面条件时，优先提升成 adapter `command`：
 
-Typical examples:
-- `github/search`
-- `shop/add-to-cart`
-- `portal/open-orders`
+- 稳定
+- 原子
+- 站点特定
+- 参数集很小且明确
 
-## Promote to Flow
+典型例子：
 
-Promote to `flow` when the task is:
-- multi-step
-- repeated often
-- still meaningful as one named goal
+- `search`
+- `open-orders`
+- `add-to-cart`
 
-Typical examples:
-- search and open first result
-- login and open orders
-- search product and add first result to cart
-- search first, then reuse `${steps[0].data.id}` or `${steps[0].data.url}` in a later step
+## 什么时候提升成 Flow
 
-Current rule:
-- if a `site` step returns `success: false`, the flow should be treated as failed immediately
-- do not rely on trailing assertions to hide a broken underlying command
-- a saved flow must be executable DSL, not a narrative record of browser exploration
+当目标满足下面条件时，优先提升成 `flow`：
 
-## Promote to Case
+- 多步
+- 重复出现
+- 作为一个命名目标有意义
 
-Promote to `case` when the goal is validation:
-- smoke tests
-- regression checks
-- human-written manual test scenarios mapped into executable flow orchestration
+额外规则：
 
-Current rule:
-- first version of `case` only composes `flow`
-- a saved case must be executable orchestration, not a step diary
+- 如果某个 `site` 步骤返回 `success: false`，整个 flow 应立即视为失败
+- 不要靠尾部断言去掩盖底层 command 已经失效的事实
+- 保存下来的 flow 必须是可执行 DSL，不是浏览器探索日记
 
-## Never Persist
+## 什么时候提升成 Case
 
-Do not save:
-- failed detours
-- unstable selectors discovered only once
-- exploratory `eval` snippets used only for diagnosis
-- noisy retries and backtracking
-- steps that only worked because of accidental UI state
-- decorative homepage entry clicks when a stable direct route exists
-- `snapshot` steps inside saved `flow` or `case` definitions
-- raw chat transcripts, scratchpad notes, or agent runtime summaries in place of real saved assets
-- external site-specific skill or CLI results used in place of Fast-Browser execution
-- any asset claimed as complete without a final Fast-Browser rerun of the successful path
+当目标本质是验证时，提升成 `case`：
 
-For low-level steps:
-- if a step has no meaningful page-level signal and the trace notes warn that it may only be a DOM action, treat it as weak evidence
-- if a step only worked once through a transient snapshot ref and offers no reusable selector interpretation, do not promote it directly
+- smoke test
+- regression check
+- 人类手写验收场景的可执行化
 
-## Stability Heuristics
+额外规则：
 
-Good candidates usually have:
-- clear inputs
-- clear success signal
-- minimal dependence on one fragile selector
-- repeatability across multiple runs
-- a stable direct route when the site offers one
-- parameter shapes that pass strict `site` validation without relying on ignored extra fields
+- 当前版本的 `case` 应复用 `flow`
+- 保存下来的 case 必须是可执行验证编排，不是步骤日记
 
-Bad candidates usually have:
-- hidden prerequisite state
-- lots of trial-and-error clicks
-- temporary DOM selectors that appeared only once
-- inline logic that depends on ad-hoc `eval`
-- homepage shells or tabs that are less stable than a verified deep link
-- flows that silently depend on whichever tab happened to be active instead of an explicitly managed current tab
+## 永远不要保存
 
-## Persistence Rule
+不要保存：
 
-A `flow` or `case` is not considered saved unless:
-- it exists under the active Fast-Browser workspace
-- save-time validation passes
-- `fast-browser flow list <site>` or `fast-browser case list <site>` can see it
-- `run` succeeds
+- 失败绕路
+- 只出现过一次的不稳定 selector
+- 只用于诊断的 `eval`
+- 噪音重试和回退
+- 依赖偶然 UI 状态才成功的步骤
+- 当存在稳定直达路由时的装饰性首页点击
+- 正式 `flow / case` 里的 `snapshot`
+- 原始聊天记录、scratchpad、运行时总结
+- 外部站点专用 skill / CLI 结果替代 Fast-Browser 执行
+- 未经最终 Fast-Browser 重跑验证就声称“已完成”的资产
+
+对低层步骤尤其注意：
+
+- 如果只有 DOM 动作，没有页面级成功信号，应视为弱证据
+- 如果只靠一次性的 `@eN` 成功，且没有稳定 selector 语义，不要直接提升
+
+## 好候选与坏候选
+
+好候选通常具备：
+
+- 清晰输入
+- 清晰成功信号
+- 不依赖单个脆弱 selector
+- 多次运行可重复
+- 站点允许稳定直达入口
+
+坏候选通常表现为：
+
+- 依赖隐藏前置状态
+- 大量试错点击
+- 只出现过一次的临时 DOM
+- 内联 `eval` 才能工作
+- 首页壳层点击比深链更脆
+- flow 静默依赖“当前碰巧活动的 tab”
+
+## 真正保存成功的条件
+
+`flow` 或 `case` 只有在满足下面条件时才算真的保存成功：
+
+- 文件位于活动 workspace
+- 保存时校验通过
+- `flow list` / `case list` 可以看到它
+- 对应的 `run` 重新跑通

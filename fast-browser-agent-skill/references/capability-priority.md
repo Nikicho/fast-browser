@@ -1,42 +1,42 @@
-# Capability Priority
+# 能力优先级
 
-Always choose the highest reusable layer that already exists.
+始终优先选择已经存在的最高复用层。
 
-## Priority Order
+## 固定顺序
 
 1. `fast-browser case run <site>/<case>`
 2. `fast-browser flow run <site>/<flow> --input '{...}'`
-3. `fast-browser site <site>/<command> --key value`
-4. low-level browser commands
+3. `fast-browser site <site>/<command> --input '{...}'`
+4. 低层浏览器命令
 
-## Decision Rules
+## 选择规则
 
-Use `case` when:
-- the task is already modeled as validation or smoke coverage
-- the expected result is already encoded as assertions
-- the job is ?run a test scenario?, not ?discover the site?
+优先用 `case`，当：
 
-Use `flow` when:
-- the task is a repeated multi-step website workflow
-- the task is meaningful as one named goal
-- the task should be reusable outside a single test case
+- 任务本质是验证、验收或回归检查
+- 预期结果已经能表达为断言
+- 你要跑的是“测试场景”，不是“重新探索站点”
 
-Use `site` when:
-- a stable atomic adapter command already exists
-- the task is basically one site capability call
-- the task should not depend on page-level exploration
+优先用 `flow`，当：
 
-Use low-level commands when:
-- no suitable `case`, `flow`, or `site` command exists
-- you are debugging, logging in, or discovering DOM behavior
-- you are bridging a one-off gap before summarization
+- 任务是重复出现的多步路径
+- 这个目标本身值得被命名和复用
+- 它不只是某个测试里的内部细节
 
-## Required Preflight
+优先用 `site`，当：
 
-Before using low-level commands on an existing site, gather inventory:
+- 已经存在稳定的原子 adapter command
+- 任务本质上就是一次站点能力调用
+- 不应该再依赖页面探索
 
-```bash
-pwsh ./scripts/site-inventory.ps1 -Site <site>
-```
+只在下面这些情况回退到低层命令：
 
-If an existing asset is close but not exact, prefer extending it over starting from scratch.
+- 没有合适的 `case / flow / site`
+- 需要登录、调试或探索 DOM 行为
+- 在为后续沉淀补一个临时缺口
+
+## 额外规则
+
+- 如果已有资产“接近可用”，优先扩展它，而不是完全重来
+- 在已有站点上回退到低层命令前，先做 inventory：`list`、`info <site>`、`info <site>/<command>`
+- 低层探索跑通后，尽快回到 `trace current --json`，判断是否应提升成正式资产
