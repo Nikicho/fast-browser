@@ -1,4 +1,4 @@
-﻿# Fast-Browser 人类操作手册
+# Fast-Browser 人类操作手册
 
 这份手册写给“通过 agent + Fast-Browser 操作网站”的人类使用者。
 
@@ -44,6 +44,23 @@ fast-browser list
 ```
 
 你不需要记住这些命令本身。对人类来说，重点只是：先让 agent 做预检，再决定是复用现有能力，还是进入探索。
+
+## 场景零：这是一个前端功能开发 / 回归任务
+
+如果你的目标不是“把网站点通一次”，而是“把某个功能做成可回归验证的资产”，建议一开始就把任务说清楚：
+
+```text
+这是一个前端功能测试任务。请先检查是否已有可复用的 case 或 flow；如果没有，就先明确功能路径和验收条件，再决定需要补什么 fast-browser 资产。开发完成后，用 fast-browser 做回归验证；只有失败时才使用 console、network、screenshot 或 trace 辅助定位。
+```
+
+你应该期待 agent 做的是：
+
+- 先查现有 `case / flow / site command`
+- 没有现成资产时，先跟你对齐“用户路径”和“验收条件”
+- 开发完成后优先跑 `case`，其次跑 `flow`
+- 只有回归失败时，才下沉到 `console / network / screenshot / trace`
+
+对人类来说，重点不是亲自去记这些调试命令，而是要求 agent 把它们留在失败定位环节，而不是变成日常主入口。
 
 ## 场景一：网站已经有适配能力
 
@@ -219,7 +236,9 @@ fast-browser case run <site>/<case> --input '{...}'
 
 ## 多 session / 多 tab 的最小认知
 
-如果任务涉及多 agent 或多个独立会话，应让 agent 固定使用一个稳定的 `--session-id`。`r`n`r`n这不是说你要亲自去拼这些参数，而是当任务明显跨阶段、跨窗口或跨 agent 时，要提醒 agent 明确说明它是否准备启用这一策略。
+如果任务涉及多 agent 或多个独立会话，应让 agent 固定使用一个稳定的 `--session-id`。
+
+这不是说你要亲自去拼这些参数，而是当任务明显跨阶段、跨窗口或跨 agent 时，要提醒 agent 明确说明它是否准备启用这一策略。
 
 如果任务涉及多 tab，建议让 agent 使用正式命令，而不是隐式猜测：
 
@@ -235,7 +254,7 @@ fast-browser tab close --id "<tabId>"
 - `open` 一定会新开 tab
 - `site` 或 `flow` 会自动跳回旧 tab
 
-## 3 个最常见的误区
+## 4 个最常见的误区
 
 ### 误区一：一上来就让 agent `snapshot`
 
@@ -254,6 +273,12 @@ fast-browser tab close --id "<tabId>"
 这样验证会非常脆。
 
 正确做法：页面动作先沉淀成 `command / flow`，`case` 只负责验证语义。
+
+### 误区四：把 `console` 或 `network` 当成人类日常测试入口
+
+这样会让协作方式退化成手工排日志，而不是复用可执行资产。
+
+正确做法：对人类暴露的主入口应优先是 `case / flow / site command`；`console / network / screenshot / trace` 只在失败时由 agent 辅助使用。
 
 ## 常见安装与运行问题
 
@@ -283,5 +308,3 @@ fast-browser click --target "@e57"
 - [CLI 完整命令手册](./cli-reference.md)
 
 内部规划文档、试验文档和 `docs-internal/` 内容不属于公共 API 承诺范围。
-
-

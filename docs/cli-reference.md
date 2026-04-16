@@ -1,10 +1,12 @@
-﻿# Fast-Browser CLI 完整命令手册
+# Fast-Browser CLI 完整命令手册
 
 这份文档是当前版本的公开命令手册。
 
 对外承诺支持的范围，以本文和 `fast-browser --help` 为准。`docs-internal/`、运行时草稿目录、未写入本文的试验性内容，不属于公共支持面。
 
 当前环境要求：`Node.js 20+`
+
+给人看的主路径通常应优先是 `case / flow / site`。`console / network / screenshot / trace latest` 这类能力主要用于失败定位，而不是日常人工主入口。
 
 ## 约定
 
@@ -172,6 +174,8 @@ fast-browser auth sync --json
 
 - `--json`
 
+说明：通常由 agent 在人工登录完成后自行触发，而不是作为人类日常主入口。
+
 ## 三、页面与低层浏览器命令
 
 ### `fast-browser open <url>`
@@ -313,6 +317,8 @@ fast-browser screenshot "full.png" --full-page --json
 
 - `--full-page`
 - `--json`
+
+说明：在前端功能测试场景里，`screenshot` 更适合作为失败证据，而不是人类日常主入口。
 
 ### `fast-browser eval <expression>`
 
@@ -526,6 +532,8 @@ fast-browser console --clear
 - `--clear`
 - `--json`
 
+说明：主要用于失败排查，不建议作为人类日常测试主入口。
+
 ### `fast-browser network`
 
 用途：查看或过滤网络请求，也可清空。
@@ -546,6 +554,8 @@ fast-browser network --clear
 - `--resource-type <type>`
 - `--clear`
 - `--json`
+
+说明：主要用于失败排查，不建议作为人类日常测试主入口。
 
 ### `fast-browser performance`
 
@@ -960,10 +970,15 @@ fast-browser test zhihu search --json
 fast-browser health
 fast-browser workspace --json
 fast-browser browser status --json
-fast-browser auth sync
 fast-browser list
 fast-browser info <site> --json
 fast-browser info <site>/<command> --json
+```
+
+如刚完成人工登录，再补：
+
+```bash
+fast-browser auth sync
 ```
 
 新站点任务：
@@ -982,3 +997,37 @@ fast-browser command save --site <site> --from-trace --id <id> --goal "<goal>"
 fast-browser flow save --site <site> --from-trace --id <id> --goal "<goal>"
 fast-browser case save --site <site> --id <id> --goal "<goal>" --flow <flowId>
 ```
+
+## 十一、面向前端功能测试的推荐路径
+
+开发前先查现有资产：
+
+```bash
+fast-browser list
+fast-browser case list <site>
+fast-browser flow list <site>
+fast-browser info <site> --json
+```
+
+开发完成后优先跑回归：
+
+```bash
+fast-browser case run <site>/<case>
+fast-browser flow run <site>/<flow>
+```
+
+只有失败时再做诊断：
+
+```bash
+fast-browser screenshot --full-page
+fast-browser trace current --json
+fast-browser console --type error --json
+fast-browser network --status 400 --json
+```
+
+原则：
+
+- `case` 是人类和 agent 的第一验证入口
+- `flow` 用来复跑用户路径
+- `site` 用来补原子业务动作
+- `console / network` 用来解释失败，不用来代替测试资产

@@ -1,4 +1,4 @@
-﻿# Fast-Browser Skill 安装说明
+# Fast-Browser Skill 安装说明
 
 这份文档写给 Agent。
 
@@ -52,12 +52,13 @@ fast-browser health
 4. 重启 agent 宿主程序
 5. 验证该 skill 已被识别
 
-## Codex / 本地技能目录示例
+## Codex / OpenCode 技能目录示例
 
 如果你使用的是本地技能目录模式，可以参考下面的目标位置：
 
 ```text
 %USERPROFILE%\.codex\skills\fast-browser-agent
+%USERPROFILE%\.config\opencode\skills\fast-browser-agent
 %USERPROFILE%\.agents\skills\fast-browser-agent
 ```
 
@@ -93,5 +94,3 @@ fast-browser health
 - [CLI 命令手册](./cli-reference.md)
 
 至于行为约束、交互策略和工作方式，直接看仓库内的 skill 即可，不要再从公开 README 猜执行规则。
-
-

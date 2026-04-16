@@ -1,35 +1,42 @@
 ---
 name: fast-browser-agent
-description: Use when an agent needs to operate websites through the fast-browser CLI, reuse or create site adapters, or promote successful browser work into reusable commands, flows, and cases.
+description: Use when a task needs the local fast-browser CLI to operate a real website, reuse or create site/flow/case assets, or run browser-based frontend regression checks.
 ---
 
 # Fast-Browser Agent
 
-## 用途
-当 Agent 需要通过 `fast-browser` CLI 操作网站、复用或创建 site adapter，或把成功路径沉淀为 `command / flow / case` 时使用。
+## What This Skill Is
 
-## 核心原则
+Use this skill when the task needs `fast-browser` to drive a real browser, reuse existing browser assets, or promote a successful path into reusable Fast-Browser assets.
 
-固定优先级：
+Fast-Browser has one core job:
+
+- help the agent reach real websites faster and more reliably
+
+Frontend testing and regression are built on top of that same capability system. They are not a separate product surface.
+
+## Default Operating Mode
+
+Always prefer the highest reusable layer that already exists:
 
 1. `case run`
 2. `flow run`
 3. `site <adapter>/<command>`
-4. 低层浏览器命令
+4. low-level browser commands
 
-不要一上来就依赖 `snapshot`、`eval`、裸 selector，或聊天上下文里的模糊回忆。
+Treat `console`, `network`, `screenshot`, and raw trace as the diagnostic layer. They explain failures. They are not the human-facing default path.
 
-## Agent 自动做
+## What The Agent Does Automatically
 
-下面这些事情默认由 Agent 自己完成，不应把实现细节甩给用户：
+Do these without pushing the implementation details onto the user:
 
-- preflight：`health / workspace / browser status / list`
-- 已有站点能力盘点：`info <site>`、`info <site>/<command>`
-- 登录完成后的认证状态同步，例如 `auth sync`
-- 正式沉淀前读取 `trace current --json`
-- 沉淀后重新验证 `site / flow / case` 是否真的可复用
+- preflight and asset inventory
+- `auth sync` after human login is complete
+- `trace current --json` before promotion
+- rerun saved `site / flow / case` assets after promotion
+- collect failure evidence for browser-based regression failures
 
-最小 preflight：
+Minimum preflight:
 
 ```bash
 fast-browser health
@@ -38,133 +45,106 @@ fast-browser browser status --json
 fast-browser list
 ```
 
-如果是已有站点，再补：
+If the task targets an existing site, also inspect:
 
 ```bash
 fast-browser info <site> --json
 fast-browser info <site>/<command> --json
 ```
 
-## Agent 必须提示用户
+## What The Agent Must Ask The User
 
-下面这些事情不要擅自假设，应主动提示用户或请求确认：
+Do not guess these:
 
-- 是否需要启用 `--session-id` 策略
-- 是否需要人工登录
-- 是否允许打开 `--headed` 浏览器窗口
-- 本次任务跑通后是否准备沉淀为 `command / flow / case`
+- whether manual login is needed
+- whether opening a `--headed` browser is allowed
+- whether the task should hold a stable `--session-id`
+- whether a successful path should be promoted into `command / flow / case`
+- for frontend testing tasks, what the user path and acceptance criteria are if they are still underspecified
 
-不要把下面这些话术交给用户：
+Do not tell the user to do technical follow-up work that the agent should own, such as:
 
-- “请你自己做 auth sync”
-- “请你自己决定 session-id 怎么配”
-- “请你自己处理登录后的浏览器状态”
+- `auth sync`
+- session wiring
+- selector debugging
+- `console` or `network` triage as the default next step
 
-## Session 策略
+## Task Routes
 
-`--session-id` 不是每次都要开的默认参数，而是一种运行策略。以下场景应主动提示用户为什么可能需要它：
+### Route 1: Existing Capability
 
-- 多 Agent 并发操作同一站点
-- 任务跨多个阶段，需要稳定继承浏览器上下文
-- 需要把人工登录、后续执行、沉淀验证放在同一个稳定 session 内
-- 需要验证 session clone、登录态继承或隔离行为
+If the site already has reusable assets, do not re-explore by default.
 
-一旦决定使用，就要遵守：
+Expected route:
 
-- 全程显式固定一个稳定的 `--session-id`
-- 一个任务只使用一个 `--session-id`
-- 中途不要切换到别的 `session-id`
+1. inventory existing `case / flow / site`
+2. run the highest reusable layer
+3. only fall back if the higher layer is missing or clearly insufficient
 
-## 登录规则
+Load these references when needed:
 
-如果需要人工登录：
+- [references/capability-priority.md](references/capability-priority.md)
+- [references/browser-recipes.md](references/browser-recipes.md)
 
-1. 先判断本次是否应固定 `--session-id`
-2. 用 `--headed` 打开登录页或相关入口
-3. 明确告诉用户在刚打开的窗口内完成登录，并在完成后回复“已登录”
-4. 用户确认后，Agent 自行执行认证状态同步
-5. 再从稳定的 post-login 页面继续跑 `site / flow / case`
+### Route 2: Frontend Testing And Regression
 
-不要只说“请登录”，却不先由 Agent 打开对应窗口。
+If the task is really “define a test path” or “run a regression check”, the working order is:
 
-## 低层探索边界
+1. check for reusable `case / flow / site`
+2. if missing, align with the user on path and assertions
+3. run `case` first
+4. if no stable `case` exists yet, run `flow`
+5. only on failure, enter diagnostics
+6. if the path will be reused, promote the result into formal assets
 
-只有在高层资产不够时才使用低层命令。PowerShell 下，snapshot ref 一律通过 `--target "@eN"` 传入。
+For details, load:
 
-常用序列：
+- [references/frontend-testing.md](references/frontend-testing.md)
+- [references/capability-priority.md](references/capability-priority.md)
+- [references/browser-recipes.md](references/browser-recipes.md)
 
-```bash
-fast-browser snapshot -i --json
-fast-browser click --target "@e57"
-fast-browser fill --target "@e12" "hello"
-fast-browser press Enter
-fast-browser waitForSelector "<selector>" --state visible
-```
+### Route 3: New Site Bootstrap
 
-不要把 `snapshot`、裸 `@eN`、真实 tabId、一次性 selector 直接保存进正式 `flow` 或 `case`。
+If the site has no useful capability yet:
 
-## 沉淀规则
+1. choose the most stable direct entry route first
+2. use `guide` to create a starter
+3. complete at least one real task
+4. promote from `trace current --json`
 
-正式沉淀前必须先读：
+For details, load:
 
-```bash
-fast-browser trace current --json
-```
+- [references/new-site-bootstrap.md](references/new-site-bootstrap.md)
+- [references/storage-location.md](references/storage-location.md)
+- [references/promotion-rules.md](references/promotion-rules.md)
 
-判断原则：
+## Hard Rules
 
-- `command`：稳定、原子的站点动作
-- `flow`：由多个稳定步骤组成的可复用目标路径
-- `case`：建立在 `flow` 之上的验证语义
+- If manual login is required, open the right `--headed` window first, wait for the user to finish, then do `auth sync` yourself.
+- If multi-stage work or login inheritance matters, use one stable `--session-id` for the whole task.
+- Save formal assets to the active Fast-Browser workspace, never to the skill directory.
+- Do not save raw `snapshot` refs, one-off selectors, or real `tabId` values into formal `flow` or `case` assets.
+- Do not rely on chat memory when `trace current --json` is available.
 
-正式路径：
+## Reference Map
 
-```bash
-fast-browser command save --site <site> --from-trace --id <commandId> --goal "<goal>"
-fast-browser command materialize --draft <draft-path>
-fast-browser flow save --site <site> --from-trace --id <flowId> --goal "<goal>"
-fast-browser case save --site <site> --id <caseId> --goal "<goal>" --flow <flowId>
-```
+Priority and task selection:
 
-不要把 `.fast-browser/sessions/...` 下的临时草稿当正式资产。正式资产必须落到当前 workspace 的 `src/adapters/<site>/...`。
+- [references/capability-priority.md](references/capability-priority.md)
 
-更细的提升标准看：
+Frontend testing and failure handling:
+
+- [references/frontend-testing.md](references/frontend-testing.md)
+- [references/browser-recipes.md](references/browser-recipes.md)
+
+New site bootstrap and save location:
+
+- [references/new-site-bootstrap.md](references/new-site-bootstrap.md)
+- [references/storage-location.md](references/storage-location.md)
+
+Promotion and trace-driven asset building:
 
 - [references/promotion-rules.md](references/promotion-rules.md)
 - [references/trace-to-command.md](references/trace-to-command.md)
 - [references/trace-to-flow.md](references/trace-to-flow.md)
 - [references/trace-to-case.md](references/trace-to-case.md)
-
-## 新站点起步
-
-新网站先找稳定直达入口，再用 `guide` 起骨架，不要先固化首页壳层点击。
-
-```bash
-fast-browser workspace --json
-fast-browser guide inspect --url <url>
-fast-browser guide plan --platform <site> --url <url> --capability "<capability>"
-fast-browser guide scaffold --platform <site> --url <url> --capability "<capability>"
-```
-
-`guide` 只负责 starter，不是成熟 adapter 生成器。复杂站点仍要靠真实任务和 `trace current` 收敛。
-
-更细规则看：
-
-- [references/new-site-bootstrap.md](references/new-site-bootstrap.md)
-- [references/storage-location.md](references/storage-location.md)
-
-## 验收边界
-
-外部站点专用 skill / CLI / MCP 只能辅助探索，不能直接算 Fast-Browser adapter 已完成。
-
-最终验收必须回到 Fast-Browser 自己的：
-
-- `site`
-- `flow`
-- `case`
-- 或必要的低层命令
-
-## 按需参考
-
-- [references/browser-recipes.md](references/browser-recipes.md)
-- [references/capability-priority.md](references/capability-priority.md)
