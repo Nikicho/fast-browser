@@ -109,6 +109,34 @@ fast-browser list
 
 - npm package：[`fast-browser`](https://www.npmjs.com/package/fast-browser)
 - GitHub repo：[`Nikicho/fast-browser`](https://github.com/Nikicho/fast-browser)
+- 当前发布版本：`1.0.0`
 - Node 要求：`>=20`
 
 如果你在 `Node 18` 上遇到 `File is not defined`、`undici` 相关报错，这不是推荐支持环境；请升级到 Node 20+。
+## 1.0 补充文档
+
+- Adapter 开发与 `context.runtime`：`docs/ADAPTER_DEVELOPER_GUIDE.md`
+- CLI 公开命令面：`docs/cli-reference.md`
+- 人类协作入口与登录协作：`docs/HUMAN_OPERATOR_GUIDE.md`
+
+当前 1.0 推荐的默认协作顺序：
+
+1. 先查 `list / info`
+2. 优先复用已有 `site command`
+3. 只有高层入口不足时，才回退到低层浏览器命令
+4. 多步一次性操作优先用 `run-script`，不要堆 PowerShell `eval`
+
+## 1.0 补充：结构化失败与自动诊断
+
+从 1.0 开始，`flow run` 和 `case run` 在失败时不再只有一条扁平报错消息。
+
+- 失败结果会带结构化落点信息，例如 `flowId / caseId / stepIndex / assertionIndex / command / assertionType`
+- 运行期间会自动采集诊断证据摘要，默认归口到失败结果里的 `error.details.diagnostics`
+- 当前自动诊断摘要会包含这些类别中的已采集项：`console`、`network`、`snapshot`、`screenshot`、`trace`
+- `trace` 不会整段内联返回，而是通过 `tracePath` 提供统一读取入口
+
+推荐协作方式：
+
+1. 先看失败结果里的结构化落点
+2. 再看 `error.details.diagnostics`
+3. 只有需要深入定位时，再读取 `trace current`、`console`、`network`、`screenshot`

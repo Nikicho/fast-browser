@@ -1,3 +1,7 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { registerBrowserCommands } from "../../../src/cli/commands/browser";
@@ -258,6 +262,53 @@ describe("browser CLI commands", () => {
     await program.parseAsync(["node", "fast-browser", "eval", "document.title"]);
 
     expect(router.evalExpression).toHaveBeenCalledWith("document.title");
+  });
+
+  it("loads eval expressions from a file to avoid shell quoting issues", async () => {
+    const router = {
+      evalExpression: vi.fn(async () => ({ ok: true, value: "Example", url: "https://example.com" }))
+    } as any;
+    const program = createProgram().exitOverride();
+    registerBrowserCommands(program, { router });
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-cli-"));
+    const scriptPath = path.join(tempDir, "eval.js");
+    await fs.writeFile(scriptPath, "document.title + '::' + location.pathname", "utf8");
+
+    try {
+      await program.parseAsync(["node", "fast-browser", "eval", "--file", scriptPath]);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+
+    expect(router.evalExpression).toHaveBeenCalledWith("document.title + '::' + location.pathname");
+  });
+
+  it("runs browser scripts from a file", async () => {
+    const router = {
+      open: vi.fn(async () => ({ ok: true, url: "https://example.com" })),
+      click: vi.fn(async () => ({ ok: true, url: "https://example.com" }))
+    } as any;
+    const program = createProgram().exitOverride();
+    registerBrowserCommands(program, { router });
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-cli-"));
+    const scriptPath = path.join(tempDir, "steps.browser.json");
+    await fs.writeFile(scriptPath, JSON.stringify({
+      steps: [
+        { command: "open", args: ["https://example.com"] },
+        { command: "click", args: ["button.primary"] }
+      ]
+    }, null, 2), "utf8");
+
+    try {
+      await program.parseAsync(["node", "fast-browser", "run-script", scriptPath]);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+
+    expect(router.open).toHaveBeenCalledWith("https://example.com", {});
+    expect(router.click).toHaveBeenCalledWith("button.primary", {});
   });
 
   it("calls navigation and metadata commands", async () => {

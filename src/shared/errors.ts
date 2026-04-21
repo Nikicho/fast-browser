@@ -5,14 +5,16 @@ export class FastBrowserError extends Error {
   public readonly stage: ErrorStage;
   public readonly retryable: boolean;
   public readonly cause?: unknown;
+  public readonly details?: unknown;
 
-  constructor(code: string, message: string, stage: ErrorStage, retryable = false, cause?: unknown) {
+  constructor(code: string, message: string, stage: ErrorStage, retryable = false, cause?: unknown, details?: unknown) {
     super(message);
     this.name = "FastBrowserError";
     this.code = code;
     this.stage = stage;
     this.retryable = retryable;
     this.cause = cause;
+    this.details = details;
   }
 }
 
@@ -22,7 +24,8 @@ export function toErrorShape(error: unknown): FastBrowserErrorShape {
       code: error.code,
       message: error.message,
       stage: error.stage,
-      retryable: error.retryable
+      retryable: error.retryable,
+      ...(error.details !== undefined ? { details: error.details } : {})
     };
   }
 
@@ -41,4 +44,30 @@ export function toErrorShape(error: unknown): FastBrowserErrorShape {
     stage: "cli",
     retryable: false
   };
+}
+
+export function withErrorDetails(error: unknown, details: unknown): unknown {
+  if (!(error instanceof FastBrowserError)) {
+    return error;
+  }
+  const mergedDetails = mergeUnknownDetails(error.details, details);
+  return new FastBrowserError(
+    error.code,
+    error.message,
+    error.stage,
+    error.retryable,
+    error.cause,
+    mergedDetails
+  );
+}
+
+function mergeUnknownDetails(current: unknown, next: unknown): unknown {
+  if (isPlainObject(current) && isPlainObject(next)) {
+    return { ...current, ...next };
+  }
+  return next;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

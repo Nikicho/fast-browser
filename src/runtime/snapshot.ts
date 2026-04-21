@@ -20,7 +20,14 @@ export function buildSnapshot(
       ref: `@e${index + 1}`,
       tag: item.tag,
       text: item.text,
-      selector: item.selector
+      selector: item.selector,
+      ...(item.selectors?.length ? { selectors: item.selectors } : {}),
+      ...(item.placeholder ?? item.attributes?.placeholder ? { placeholder: item.placeholder ?? item.attributes?.placeholder } : {}),
+      ...(item.role ?? item.attributes?.role ? { role: item.role ?? item.attributes?.role } : {}),
+      ...(item.ariaLabel ?? item.attributes?.["aria-label"] ? { ariaLabel: item.ariaLabel ?? item.attributes?.["aria-label"] } : {}),
+      ...(item.href ?? item.attributes?.href ? { href: item.href ?? item.attributes?.href } : {}),
+      ...(item.name ?? item.attributes?.name ? { name: item.name ?? item.attributes?.name } : {}),
+      ...(item.inputType ? { inputType: item.inputType } : {})
     }));
 
   const text = items
@@ -125,6 +132,13 @@ export function createSnapshotEvaluatorSource(): string {
             text: (element.innerText || element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 160),
             selector: selectPreferredSelector(selectorInput, isUnique),
             selectors: buildSelectorCandidates(selectorInput).slice(0, 5),
+            attributes,
+            placeholder: attributes.placeholder,
+            role: attributes.role,
+            ariaLabel: attributes["aria-label"],
+            href: attributes.href,
+            name: attributes.name,
+            inputType: element.getAttribute('type') || undefined,
             interactive: isInteractive(element),
             className
           };

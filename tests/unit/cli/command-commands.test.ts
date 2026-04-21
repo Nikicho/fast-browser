@@ -145,12 +145,14 @@ describe("command CLI commands", () => {
     } as any;
     const program = createProgram().exitOverride();
     registerCommandCommands(program, { router });
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
     await expect(program.parseAsync([
       "node", "fast-browser", "command", "materialize"
     ])).rejects.toThrow(/required option '--draft <path>' not specified/i);
 
     expect(router.commandMaterialize).not.toHaveBeenCalled();
+    stderrSpy.mockRestore();
   });
 
   it("rejects command save without from-trace id and goal", async () => {

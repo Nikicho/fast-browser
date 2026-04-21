@@ -142,4 +142,94 @@ describe("AdapterRegistry", () => {
       })
     ]);
   });
+
+  it("accepts legacy login-required sessionPolicy values", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-registry-"));
+    tempDirs.push(root);
+    const adapterDir = path.join(root, "login-demo");
+    await fs.mkdir(adapterDir, { recursive: true });
+    await fs.writeFile(
+      path.join(adapterDir, "manifest.json"),
+      JSON.stringify({
+        id: "login-demo",
+        displayName: "login-demo",
+        version: "0.1.0",
+        platform: "login-demo",
+        description: "Login adapter",
+        sessionPolicy: "login-required",
+        commands: [
+          {
+            name: "home",
+            description: "Fetch demo home",
+            args: [],
+            example: "fast-browser site login-demo/home"
+          }
+        ]
+      }),
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(adapterDir, "index.js"),
+      [
+        'const manifest = require("./manifest.json");',
+        "module.exports = {",
+        "  manifest,",
+        "  async execute() {",
+        '    return { success: true, data: { ok: true }, meta: { adapterId: "login-demo", commandName: "home", cached: false, timingMs: 0 } };',
+        "  }",
+        "};",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+
+    const registry = new AdapterRegistry({} as any, root);
+    const adapters = await registry.discover();
+
+    expect(adapters).toContainEqual(expect.objectContaining({
+      manifest: expect.objectContaining({
+        id: "login-demo",
+        sessionPolicy: "required"
+      })
+    }));
+    expect(registry.getLoadDiagnostics()).toEqual([]);
+  });
+
+  it("reports supported export shapes when a module export is unusable", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-registry-"));
+    tempDirs.push(root);
+    const adapterDir = path.join(root, "bad-export-demo");
+    await fs.mkdir(adapterDir, { recursive: true });
+    await fs.writeFile(
+      path.join(adapterDir, "manifest.json"),
+      JSON.stringify({
+        id: "bad-export-demo",
+        displayName: "bad-export-demo",
+        version: "0.1.0",
+        platform: "bad-export-demo",
+        description: "Broken export adapter",
+        commands: [
+          {
+            name: "home",
+            description: "Fetch demo home",
+            args: [],
+            example: "fast-browser site bad-export-demo/home"
+          }
+        ]
+      }),
+      "utf8"
+    );
+    await fs.writeFile(path.join(adapterDir, "index.js"), 'module.exports = { nope: true };', "utf8");
+
+    const registry = new AdapterRegistry({} as any, root);
+    await registry.discover();
+
+    expect(registry.getLoadDiagnostics()).toEqual([
+      expect.objectContaining({
+        adapterId: "bad-export-demo",
+        stage: "export",
+        message: expect.stringMatching(/supported shapes/i)
+      })
+    ]);
+  });
 });

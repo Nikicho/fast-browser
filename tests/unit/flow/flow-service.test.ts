@@ -496,6 +496,158 @@ describe("FlowService", () => {
       message: "Flow success assertion failed: textIncludes"
     });
   });
+
+  it("returns structured failure details and diagnostics when a builtin step fails", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-flow-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo", "flows"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "flows", "step-failure.flow.json"),
+      JSON.stringify({
+        id: "step-failure",
+        kind: "flow",
+        goal: "Expose structured step failures",
+        steps: [
+          { type: "builtin", command: "open", with: { url: "https://example.com/login" } },
+          { type: "builtin", command: "click", with: { target: { selector: "button.submit", text: "Submit" } } }
+        ]
+      }, null, 2),
+      "utf8"
+    );
+
+    const flowService = createFlowService({
+      adaptersDir,
+      executeSite: vi.fn(),
+      builtinHandlers: {
+        resetDiagnostics: vi.fn(async () => undefined),
+        open: vi.fn(async () => ({ ok: true, url: "https://example.com/login" })),
+        wait: vi.fn(),
+        waitForSelector: vi.fn(),
+        tabNew: vi.fn(),
+        tabSwitch: vi.fn(),
+        click: vi.fn(async () => { throw new Error("click failed"); }),
+        fill: vi.fn(),
+        press: vi.fn(),
+        getUrl: vi.fn(async () => "https://example.com/login"),
+        getTitle: vi.fn(async () => "Login"),
+        getSnapshotText: vi.fn(async () => "Login page"),
+        getSelectorCount: vi.fn(),
+        getElementText: vi.fn(),
+        getStorageValue: vi.fn(),
+        getNetworkEntries: vi.fn(async () => [{ url: "https://example.com/api/login", method: "POST", status: 500, time: Date.now() }]),
+        getConsoleLogs: vi.fn(async () => [{ type: "error", text: "submit failed", time: Date.now() }]),
+        captureSnapshot: vi.fn(async () => ({
+          url: "https://example.com/login",
+          title: "Login",
+          text: "Login page",
+          interactive: [{ ref: "@e1", tag: "button", text: "Submit", selector: "button.submit" }]
+        })),
+        captureScreenshot: vi.fn(async () => ({ ok: true, url: "https://example.com/login", path: "shot.png" }))
+      } as any
+    });
+
+    await expect(flowService.runFlow("demo/step-failure")).rejects.toMatchObject({
+      code: "FB_FLOW_002",
+      stage: "flow",
+      details: {
+        stage: "flow",
+        site: "demo",
+        flowId: "step-failure",
+        failureType: "step",
+        stepIndex: 1,
+        stepType: "builtin",
+        command: "click",
+        diagnostics: {
+          available: ["console", "network", "snapshot", "screenshot"],
+          consoleCount: 1,
+          networkCount: 1,
+          screenshotPath: "shot.png",
+          snapshot: {
+            url: "https://example.com/login",
+            title: "Login",
+            interactiveCount: 1,
+            textLength: 10
+          }
+        }
+      }
+    });
+  });
+
+  it("returns structured assertion failure details", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-flow-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo", "flows"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "flows", "assertion-details.flow.json"),
+      JSON.stringify({
+        id: "assertion-details",
+        kind: "flow",
+        goal: "Expose assertion failure details",
+        steps: [
+          { type: "builtin", command: "open", with: { url: "https://example.com/results" } }
+        ],
+        success: [
+          { type: "textIncludes", value: "needle" }
+        ]
+      }, null, 2),
+      "utf8"
+    );
+
+    const flowService = createFlowService({
+      adaptersDir,
+      executeSite: vi.fn(),
+      builtinHandlers: {
+        resetDiagnostics: vi.fn(async () => undefined),
+        open: vi.fn(async () => ({ ok: true, url: "https://example.com/results" })),
+        wait: vi.fn(),
+        waitForSelector: vi.fn(),
+        tabNew: vi.fn(),
+        tabSwitch: vi.fn(),
+        click: vi.fn(),
+        fill: vi.fn(),
+        press: vi.fn(),
+        getUrl: vi.fn(async () => "https://example.com/results"),
+        getTitle: vi.fn(async () => "Results"),
+        getSnapshotText: vi.fn(async () => "haystack"),
+        getSelectorCount: vi.fn(),
+        getElementText: vi.fn(),
+        getStorageValue: vi.fn(),
+        getNetworkEntries: vi.fn(async () => []),
+        getConsoleLogs: vi.fn(async () => []),
+        captureSnapshot: vi.fn(async () => ({
+          url: "https://example.com/results",
+          title: "Results",
+          text: "haystack",
+          interactive: []
+        })),
+        captureScreenshot: vi.fn(async () => ({ ok: true, url: "https://example.com/results", path: "assertion.png" }))
+      } as any
+    });
+
+    await expect(flowService.runFlow("demo/assertion-details")).rejects.toMatchObject({
+      code: "FB_FLOW_002",
+      stage: "flow",
+      details: {
+        stage: "flow",
+        site: "demo",
+        flowId: "assertion-details",
+        failureType: "assertion",
+        assertionIndex: 0,
+        assertionType: "textIncludes",
+        diagnostics: {
+          screenshotPath: "assertion.png",
+          snapshot: {
+            url: "https://example.com/results",
+            title: "Results",
+            interactiveCount: 0,
+            textLength: 8
+          }
+        }
+      }
+    });
+  });
   it("rejects flows with empty goal during save", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-flow-"));
     tempDirs.push(root);

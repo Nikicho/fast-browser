@@ -308,3 +308,69 @@ fast-browser click --target "@e57"
 - [CLI 完整命令手册](./cli-reference.md)
 
 内部规划文档、试验文档和 `docs-internal/` 内容不属于公共 API 承诺范围。
+## 1.0 补充：让 Agent 少走弯路
+
+### 先查快速导航，再决定要不要 open
+
+当你想让 Agent 打开某个网站功能页、后台页、搜索页时，先要求它检查现有导航能力：
+
+```text
+先查 fast-browser list 和 info，看看这个站点是否已经有可复用的 site command。优先走正式导航入口，不要默认直接 open URL。
+```
+
+这一步的目的不是省一条命令，而是减少：
+
+- 重复打开页面
+- 重复 snapshot
+- 重复猜 selector
+- 已有能力却又回退到底层探索
+
+### PowerShell 下，不要硬堆 eval
+
+如果表达式里有空格、引号、括号，优先让 Agent 用：
+
+- `fast-browser eval --file <path>`
+- `fast-browser run-script <path>`
+
+不要默认让它在 PowerShell 里手拼长字符串。
+
+### 多步一次性操作，优先 run-script
+
+当任务只是一次性跑通一条浏览器路径，但又不值得立刻沉淀成 `flow` 时，可以直接要求：
+
+```text
+把这段多步浏览器操作写成 run-script 文件再执行，不要手工连续堆 eval / click / fill / press。
+```
+
+### 登录后跳转明显时，提醒 Agent 等 URL 条件
+
+如果你知道页面会经历登录跳转、搜索跳转、后台路由切换，可以直接说：
+
+```text
+open 后不要立刻判断成功，等 URL 包含目标片段，必要时再等页面元素稳定。
+```
+
+## 1.0 补充：`flow / case` 失败后的人类协作方式
+
+当 `flow run` 或 `case run` 失败时，不要第一反应就是让 Agent 重新 `snapshot` 整个页面。
+
+先让 Agent 按这个顺序处理：
+
+1. 读取失败结果里的结构化落点
+2. 告诉你失败发生在什么 `flow / case`、哪一步或哪条断言
+3. 检查 `error.details.diagnostics`
+4. 只有需要继续定位时，再读取 `trace / console / network / screenshot`
+
+你可以直接这样提示 Agent：
+
+```text
+先不要重新探索页面。先读取这次 flow/case 失败结果里的 error.details，告诉我失败落点和 diagnostics 摘要；只有 diagnostics 不够时，再继续读 trace、console、network 或 screenshot。
+```
+
+如果是登录态、跳转链、表单提交类问题，优先关注：
+
+- `stepIndex / command`
+- `assertionIndex / assertionType`
+- `diagnostics.available`
+- `tracePath`
+- `screenshotPath`

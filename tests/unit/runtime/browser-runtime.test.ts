@@ -23,6 +23,55 @@ describe("BrowserRuntimeFacade", () => {
     tempRoots.length = 0;
   });
 
+  it("captures console and network diagnostics through installed instrumentation", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-runtime-"));
+    tempRoots.push(root);
+    const runtime = new BrowserRuntimeFacade({
+      stateFilePath: path.join(root, "state.json"),
+      sessionStateFilePath: path.join(root, "browser-session-session-b.json"),
+      sessionId: "session-b"
+    }) as any;
+
+    const listeners = new Map<string, (...args: any[]) => void>();
+    const page = {
+      evaluateOnNewDocument: vi.fn(async () => undefined),
+      on: vi.fn((event: string, handler: (...args: any[]) => void) => {
+        listeners.set(event, handler);
+      })
+    };
+
+    await runtime.installInstrumentation(page);
+
+    const consoleHandler = listeners.get("console");
+    const responseHandler = listeners.get("response");
+    expect(consoleHandler).toBeTypeOf("function");
+    expect(responseHandler).toBeTypeOf("function");
+
+    await consoleHandler?.({
+      type: () => "error",
+      text: () => "submit failed"
+    });
+    await responseHandler?.({
+      url: () => "https://example.com/api/login",
+      status: () => 500,
+      request: () => ({
+        method: () => "POST",
+        resourceType: () => "fetch"
+      })
+    });
+
+    await expect(runtime.consoleLogs()).resolves.toEqual({
+      logs: [
+        expect.objectContaining({ type: "error", text: "submit failed" })
+      ]
+    });
+    await expect(runtime.networkEntries()).resolves.toEqual({
+      entries: [
+        expect.objectContaining({ url: "https://example.com/api/login", method: "POST", status: 500, resourceType: "fetch" })
+      ]
+    });
+  });
+
   it("creates a dedicated tab for a different browser session instead of reusing another session page", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-runtime-"));
     tempRoots.push(root);
@@ -206,7 +255,7 @@ describe("BrowserRuntimeFacade", () => {
     const session = { pageTargetId: "shared-page", pageUrl: "https://example.com/results", refs: [] };
     const resolved = await runtime.resolveTarget("@e57", session, page);
 
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       selector: "a.result-link",
       selectorCandidates: ["a.result-link"]
     });
@@ -1106,7 +1155,7 @@ describe("BrowserRuntimeFacade", () => {
     });
     expect(page.$).toHaveBeenCalledWith("div:nth-of-type(7) > button:nth-of-type(2)");
     expect(page.$).toHaveBeenCalledWith('button[data-testid="publish-image"]');
-    expect(page.waitForSelector).toHaveBeenCalledWith('button[data-testid="publish-image"]', { timeout: 5000 });
+    expect(page.waitForSelector).toHaveBeenCalledWith('button[data-testid="publish-image"]', { timeout: 5000, visible: true });
     expect(page.click).toHaveBeenCalledWith('button[data-testid="publish-image"]');
     expect(browser.disconnect).toHaveBeenCalledTimes(1);
   });
@@ -1176,7 +1225,7 @@ describe("BrowserRuntimeFacade", () => {
     });
     expect(page.$).toHaveBeenCalledWith("div:nth-of-type(7) > button:nth-of-type(2)");
     expect(page.$).toHaveBeenCalledWith('button[data-testid="publish-image"]');
-    expect(page.waitForSelector).toHaveBeenCalledWith('button[aria-label="发布图片"]', { timeout: 5000 });
+    expect(page.waitForSelector).toHaveBeenCalledWith('button[aria-label="发布图片"]', { timeout: 5000, visible: true });
     expect(page.click).toHaveBeenCalledWith('button[aria-label="发布图片"]');
     expect(browser.disconnect).toHaveBeenCalledTimes(1);
   });it("waits for page readiness after key presses", async () => {
@@ -1280,6 +1329,50 @@ it("commits enter presses on targeted inputs through a form-submit fallback", as
   await runtime.ensureLegacyProfileMigrated(path.join(browserHome, "chrome-profile"));
 
   await expect(fs.readFile(path.join(globalProfileDir, "Preferences"), "utf8")).resolves.toBe("legacy-profile");
+});
+
+it("waits until the current url contains the requested substring", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-runtime-"));
+  tempRoots.push(root);
+  const stateFilePath = path.join(root, "state.json");
+
+  const runtime = new BrowserRuntimeFacade({ stateFilePath }) as any;
+  const browser = {
+    wsEndpoint: () => "ws://127.0.0.1:9222/devtools/browser/test",
+    disconnect: vi.fn(async () => undefined)
+  };
+  const page = {
+    waitForFunction: vi.fn(async () => undefined),
+    title: vi.fn(async () => "Dashboard"),
+    url: vi.fn(() => "https://example.com/dashboard"),
+    target: () => ({ _targetId: "page-wait-url" })
+  };
+
+  runtime.ensurePage = vi.fn(async () => ({
+    browser,
+    page,
+    state: {
+      debugPort: 9222,
+      wsEndpoint: "ws://127.0.0.1:9222/devtools/browser/test",
+      headless: false,
+      launchedAt: 1
+    },
+    session: {
+      pageTargetId: "page-wait-url",
+      consoleLogs: [],
+      networkEntries: []
+    }
+  }));
+
+  const result = await runtime.waitUntilUrlContains("/dashboard", { timeoutMs: 1800 });
+
+  expect(page.waitForFunction).toHaveBeenCalledWith(expect.any(Function), { timeout: 1800 }, "/dashboard");
+  expect(result).toMatchObject({
+    ok: true,
+    url: "https://example.com/dashboard",
+    title: "Dashboard"
+  });
+  expect(browser.disconnect).toHaveBeenCalledTimes(1);
 });
 it("handles a common page gate by clicking the first matching interactive element", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-runtime-"));
@@ -1508,6 +1601,141 @@ it("lists, switches, creates, and closes tabs while updating the active page", a
 
 
 
+
+describe("BrowserRuntimeFacade interaction semantics", () => {
+  const tempRoots: string[] = [];
+  const originalSessionId = process.env.FAST_BROWSER_SESSION_ID;
+
+  afterEach(async () => {
+    if (originalSessionId === undefined) {
+      delete process.env.FAST_BROWSER_SESSION_ID;
+    } else {
+      process.env.FAST_BROWSER_SESSION_ID = originalSessionId;
+    }
+    await Promise.all(tempRoots.map((dir) => fs.rm(dir, { recursive: true, force: true })));
+    tempRoots.length = 0;
+  });
+
+  it("resolves snapshot refs before pressing keys on a target", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-runtime-"));
+    tempRoots.push(root);
+    const stateFilePath = path.join(root, "state.json");
+
+    process.env.FAST_BROWSER_SESSION_ID = "test-session";
+    const runtime = new BrowserRuntimeFacade({ stateFilePath }) as any;
+    const browser = {
+      wsEndpoint: () => "ws://127.0.0.1:9222/devtools/browser/test",
+      disconnect: vi.fn(async () => undefined)
+    };
+    const page = {
+      focus: vi.fn(async () => undefined),
+      $eval: vi.fn(async () => undefined),
+      $: vi.fn(async (selector: string) => selector === 'input[aria-label="搜索"]' ? {} : null),
+      keyboard: {
+        press: vi.fn(async () => undefined),
+        type: vi.fn(async () => undefined)
+      },
+      title: vi.fn(async () => "Search"),
+      url: vi.fn(() => "https://example.com/search"),
+      target: () => ({ _targetId: "page-press-ref" })
+    };
+
+    runtime.ensurePage = vi.fn(async () => ({
+      browser,
+      page,
+      state: {
+        debugPort: 9222,
+        wsEndpoint: "ws://127.0.0.1:9222/devtools/browser/test",
+        headless: false,
+        launchedAt: 1
+      },
+      session: {
+        pageTargetId: "page-press-ref",
+        refs: [{
+          ref: "@e1",
+          selector: "div:nth-of-type(4) > input:nth-of-type(1)",
+          selectors: ['div:nth-of-type(4) > input:nth-of-type(1)', 'input[aria-label="搜索"]'],
+          text: "",
+          tag: "input"
+        }],
+        consoleLogs: [],
+        networkEntries: []
+      }
+    }));
+    runtime.waitForPageReady = vi.fn(async () => undefined);
+
+    const result = await runtime.press("Enter", { target: "@e1" });
+
+    expect(page.focus).toHaveBeenCalledWith('input[aria-label="搜索"]');
+    expect(page.keyboard.press).toHaveBeenCalledWith("Enter");
+    expect(result).toMatchObject({
+      selector: 'input[aria-label="搜索"]',
+      selectorCandidates: ['div:nth-of-type(4) > input:nth-of-type(1)', 'input[aria-label="搜索"]']
+    });
+    expect(browser.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches input and change events when filling a field through the DOM setter path", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-runtime-"));
+    tempRoots.push(root);
+    const stateFilePath = path.join(root, "state.json");
+
+    process.env.FAST_BROWSER_SESSION_ID = "test-session";
+    const runtime = new BrowserRuntimeFacade({ stateFilePath }) as any;
+    const browser = {
+      wsEndpoint: () => "ws://127.0.0.1:9222/devtools/browser/test",
+      disconnect: vi.fn(async () => undefined)
+    };
+    const dispatchedEvents: string[] = [];
+    const inputPrototype = {
+      set value(nextValue: string) {
+        (this as { __value?: string }).__value = nextValue;
+      }
+    };
+    const element = Object.create(inputPrototype) as {
+      __value?: string;
+      dispatchEvent: (event: { type: string }) => void;
+    };
+    element.dispatchEvent = (event) => {
+      dispatchedEvents.push(event.type);
+    };
+
+    const page = {
+      waitForSelector: vi.fn(async () => undefined),
+      focus: vi.fn(async () => undefined),
+      $eval: vi.fn(async (_selector: string, callback: (node: unknown, nextValue: string) => void, nextValue: string) => {
+        callback(element, nextValue);
+        return undefined;
+      }),
+      title: vi.fn(async () => "Example"),
+      url: vi.fn(() => "https://example.com/search"),
+      target: () => ({ _targetId: "page-fill-events" })
+    };
+
+    runtime.ensurePage = vi.fn(async () => ({
+      browser,
+      page,
+      state: {
+        debugPort: 9222,
+        wsEndpoint: "ws://127.0.0.1:9222/devtools/browser/test",
+        headless: false,
+        launchedAt: 1
+      },
+      session: {
+        pageTargetId: "page-fill-events",
+        consoleLogs: [],
+        networkEntries: []
+      }
+    }));
+    runtime.waitForPageReady = vi.fn(async () => undefined);
+
+    await runtime.fill("input[name=q]", "hello");
+
+    expect(element.__value).toBe("hello");
+    expect(dispatchedEvents).toEqual(["input", "change"]);
+    expect(browser.disconnect).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("BrowserRuntimeFacade auth and clone lifecycle", () => {
   const lifecycleTempRoots: string[] = [];

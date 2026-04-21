@@ -1031,3 +1031,121 @@ fast-browser network --status 400 --json
 - `flow` 用来复跑用户路径
 - `site` 用来补原子业务动作
 - `console / network` 用来解释失败，不用来代替测试资产
+## 1.0 补充：eval 与 run-script
+
+### `fast-browser eval [expression]`
+
+现在支持 3 种输入方式，三选一：
+
+```bash
+fast-browser eval "document.title"
+fast-browser eval --expr "location.href"
+fast-browser eval --file ".\\expr.js"
+```
+
+适用建议：
+
+- 单个表达式：直接 `eval`
+- PowerShell 下有复杂引号：优先 `--file`
+- 多步浏览器操作：不要堆多个 `eval`，改用 `run-script`
+
+### `fast-browser run-script <path>`
+
+用途：从 JSON 文件执行多步浏览器操作。
+
+```bash
+fast-browser run-script ".\\search.browser.json"
+fast-browser run-script ".\\search.browser.json" --json
+```
+
+脚本格式：
+
+```json
+{
+  "continueOnError": false,
+  "steps": [
+    { "command": "open", "args": ["https://example.com"] },
+    { "command": "fill", "args": ["input[name=q]", "fast-browser"] },
+    { "command": "press", "args": ["Enter"] }
+  ]
+}
+```
+
+常用支持命令：
+
+- `open`
+- `snapshot`
+- `click`
+- `type`
+- `fill`
+- `press`
+- `hover`
+- `scroll`
+- `screenshot`
+- `eval`
+- `wait`
+- `waitForSelector`
+- `site`
+- `tab.new`
+- `tab.switch`
+- `tab.close`
+- `tab.list`
+
+## 1.0 补充：snapshot 结构化定位
+
+`snapshot -i --json` 现在会返回更丰富的交互元素信息，常见字段包括：
+
+- `ref`
+- `tag`
+- `text`
+- `selector`
+- `selectors`
+- `placeholder`
+- `role`
+- `ariaLabel`
+- `href`
+- `name`
+- `inputType`
+
+推荐优先级：
+
+1. 先用 `selectors` 里的稳定语义选择器
+2. 再退回 `selector`
+3. 不要把 `@eN` 永久写进正式 `flow / case`
+
+## 1.0 补充：`flow run` / `case run` 失败输出
+
+现在这两个命令失败时，会通过统一错误出口返回结构化 JSON：
+
+- `error.code`
+- `error.message`
+- `error.stage`
+- `error.details`
+
+其中 `error.details` 重点字段包括：
+
+- `flow` 失败：`flowId`、`failureType`、`stepIndex`、`stepType`、`command`、`assertionIndex`、`assertionType`
+- `case` 失败：`caseId`、`failureType`、`useIndex`、`useFlowId`、`flowFailure`、`assertionIndex`、`assertionType`
+- 自动诊断摘要：`error.details.diagnostics`
+
+`diagnostics` 常见字段：
+
+- `available`
+- `consoleCount`
+- `networkCount`
+- `snapshot`
+- `screenshotPath`
+- `tracePath`
+
+推荐读取顺序：
+
+1. 先看 `error.details` 里的失败落点
+2. 再看 `error.details.diagnostics.available`
+3. 需要深挖时，再执行：
+
+```bash
+fast-browser trace current --json
+fast-browser console --json
+fast-browser network --json
+fast-browser screenshot --full-page
+```

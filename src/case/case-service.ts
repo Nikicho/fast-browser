@@ -2,10 +2,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { getCaseFilePath, getCustomAdaptersDir } from "../shared/constants";
-import { FastBrowserError } from "../shared/errors";
+import { FastBrowserError, toErrorShape } from "../shared/errors";
+import { collectRunDiagnostics, resetRunDiagnostics } from "../shared/run-diagnostics";
 import type {
   AdapterArg,
+  BrowserActionResult,
+  BrowserConsoleEntry,
   BrowserNetworkEntry,
+  BrowserSnapshotResult,
+  CaseFailureDetails,
   CaseDefinition,
   CaseListItem,
   CaseRunResult,
@@ -25,11 +30,15 @@ interface CaseBuiltinHandlers {
   getElementText(selector: string): Promise<string>;
   getStorageValue(kind: "localStorage" | "sessionStorage", key: string): Promise<string | null>;
   getNetworkEntries(): Promise<BrowserNetworkEntry[]>;
+  getConsoleLogs?(): Promise<BrowserConsoleEntry[]>;
+  captureSnapshot?(): Promise<BrowserSnapshotResult>;
+  captureScreenshot?(): Promise<BrowserActionResult | { path?: string }>;
+  resetDiagnostics?(): Promise<void>;
 }
 
 interface CaseServiceOptions {
   adaptersDir?: string;
-  runFlow(target: string, params: Record<string, unknown>): Promise<FlowRunResult>;
+  runFlow(target: string, params: Record<string, unknown>, options?: { preserveDiagnostics?: boolean }): Promise<FlowRunResult>;
   builtinHandlers: CaseBuiltinHandlers;
 }
 
@@ -69,13 +78,14 @@ export function createCaseService(options: CaseServiceOptions) {
       const definition = await loadCaseDefinition(caseFilePath);
       validateCaseDefinition(definition);
       validateRequiredParams(definition.params, params);
+      await resetRunDiagnostics(options.builtinHandlers);
 
       const uses: CaseRunUseResult[] = [];
       for (const [index, use] of definition.uses.entries()) {
         const input = resolveTemplates(use.with ?? {}, params) as Record<string, unknown>;
         const useStartedAt = Date.now();
         try {
-          const result = await options.runFlow(`${site}/${use.flow}`, input);
+          const result = await options.runFlow(`${site}/${use.flow}`, input, { preserveDiagnostics: true });
           uses.push({
             index,
             flow: use.flow,
@@ -84,13 +94,28 @@ export function createCaseService(options: CaseServiceOptions) {
             durationMs: Date.now() - useStartedAt
           });
         } catch (error) {
-          throw await buildAuthAwareCaseError(`Case flow failed: ${use.flow}`, options.builtinHandlers, error);
+          throw await buildCaseFailureError(
+            `Case flow failed: ${use.flow}`,
+            options.builtinHandlers,
+            {
+              stage: "case",
+              site,
+              caseId,
+              failureType: "flow",
+              useIndex: index,
+              useFlowId: use.flow,
+              ...(error instanceof FastBrowserError && error.details ? { flowFailure: error.details as any } : {})
+            },
+            error,
+            true
+          );
         }
       }
 
       const assertions = await executeAssertions(
         resolveTemplates(definition.assertions ?? [], params) as FlowAssertion[],
-        options.builtinHandlers
+        options.builtinHandlers,
+        { site, caseId }
       );
 
       return {
@@ -267,13 +292,28 @@ function parseCaseTarget(target: string): { site: string; caseId: string } {
   return { site, caseId };
 }
 
-async function executeAssertions(assertions: FlowAssertion[], handlers: CaseBuiltinHandlers): Promise<FlowAssertionResult[]> {
+async function executeAssertions(
+  assertions: FlowAssertion[],
+  handlers: CaseBuiltinHandlers,
+  context: { site: string; caseId: string }
+): Promise<FlowAssertionResult[]> {
   const results: FlowAssertionResult[] = [];
 
   for (const [index, assertion] of assertions.entries()) {
     const result = await executeAssertion(assertion, index, handlers);
     if (!result.ok) {
-      throw await buildAuthAwareCaseError(`Case assertion failed: ${assertion.type}`, handlers);
+      throw await buildCaseFailureError(
+        `Case assertion failed: ${assertion.type}`,
+        handlers,
+        {
+          stage: "case",
+          site: context.site,
+          caseId: context.caseId,
+          failureType: "assertion",
+          assertionIndex: index,
+          assertionType: assertion.type
+        }
+      );
     }
     results.push(result);
   }
@@ -281,9 +321,30 @@ async function executeAssertions(assertions: FlowAssertion[], handlers: CaseBuil
   return results;
 }
 
-async function buildAuthAwareCaseError(message: string, handlers: CaseBuiltinHandlers, cause?: unknown): Promise<FastBrowserError> {
+async function buildCaseFailureError(
+  message: string,
+  handlers: CaseBuiltinHandlers,
+  details: Omit<CaseFailureDetails, "diagnostics" | "cause">,
+  cause?: unknown,
+  preserveCauseDiagnostics = false
+): Promise<FastBrowserError> {
   const hint = await buildAuthRecoveryHint(handlers.getUrl, handlers.getTitle);
-  return new FastBrowserError("FB_CASE_002", hint ? `${message} ${hint}` : message, "case", false, cause);
+  const inheritedDiagnostics = preserveCauseDiagnostics && cause instanceof FastBrowserError && cause.details && typeof cause.details === "object"
+    ? (cause.details as { diagnostics?: CaseFailureDetails["diagnostics"] | any }).diagnostics
+    : undefined;
+  const diagnostics = inheritedDiagnostics ?? await collectRunDiagnostics(handlers);
+  return new FastBrowserError(
+    "FB_CASE_002",
+    hint ? `${message} ${hint}` : message,
+    "case",
+    false,
+    cause,
+    {
+      ...details,
+      ...(diagnostics ? { diagnostics } : {}),
+      ...(cause ? { cause: toErrorShape(cause) } : {})
+    } satisfies CaseFailureDetails
+  );
 }
 
 async function buildAuthRecoveryHint(

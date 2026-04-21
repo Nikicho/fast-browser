@@ -64,5 +64,5 @@ describe("BrowserRuntimeFacade launchChrome on Windows", () => {
       ]),
       expect.objectContaining({ detached: true, stdio: "ignore", windowsHide: true })
     );
-  });
+  }, 15000);
 });

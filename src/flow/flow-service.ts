@@ -2,10 +2,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { getCustomAdaptersDir, getFlowFilePath } from "../shared/constants";
-import { FastBrowserError } from "../shared/errors";
+import { FastBrowserError, toErrorShape } from "../shared/errors";
+import { collectRunDiagnostics, resetRunDiagnostics } from "../shared/run-diagnostics";
 import type {
   BrowserActionResult,
+  BrowserConsoleEntry,
   BrowserNetworkEntry,
+  BrowserSnapshotResult,
+  FlowFailureDetails,
   FlowAssertion,
   FlowAssertionResult,
   FlowBuiltinCommand,
@@ -33,6 +37,10 @@ interface FlowBuiltinHandlers {
   getElementText(selector: string): Promise<string>;
   getStorageValue(kind: "localStorage" | "sessionStorage", key: string): Promise<string | null>;
   getNetworkEntries(): Promise<BrowserNetworkEntry[]>;
+  getConsoleLogs?(): Promise<BrowserConsoleEntry[]>;
+  captureSnapshot?(): Promise<BrowserSnapshotResult>;
+  captureScreenshot?(): Promise<BrowserActionResult | { path?: string }>;
+  resetDiagnostics?(): Promise<void>;
 }
 
 interface FlowServiceOptions {
@@ -70,12 +78,15 @@ export function createFlowService(options: FlowServiceOptions) {
       return flows.flat().sort((left, right) => left.path.localeCompare(right.path));
     },
 
-    async runFlow(target: string, params: Record<string, unknown> = {}): Promise<FlowRunResult> {
+    async runFlow(target: string, params: Record<string, unknown> = {}, executionOptions: { preserveDiagnostics?: boolean } = {}): Promise<FlowRunResult> {
       const { site, flowId } = parseFlowTarget(target);
       const flowFilePath = path.join(adaptersDir, site, "flows", `${flowId}.flow.json`);
       const definition = await loadFlowDefinition(flowFilePath);
       validateFlowDefinition(definition);
       validateRequiredParams(definition, params);
+      if (!executionOptions.preserveDiagnostics) {
+        await resetRunDiagnostics(options.builtinHandlers);
+      }
 
       const steps: FlowRunStepResult[] = [];
       for (const [index, step] of definition.steps.entries()) {
@@ -86,7 +97,20 @@ export function createFlowService(options: FlowServiceOptions) {
         if (step.type === "site") {
           result = await options.executeSite(step.command, input);
           if (isFailedSiteStepResult(result)) {
-            throw await buildAuthAwareFlowError(`Flow step failed: ${step.command}`, options.builtinHandlers);
+            throw await buildFlowFailureError(
+              `Flow step failed: ${step.command}`,
+              options.builtinHandlers,
+              {
+                stage: "flow",
+                site,
+                flowId,
+                failureType: "step",
+                stepIndex: index,
+                stepType: step.type,
+                command: step.command
+              },
+              (result as { error?: unknown }).error ?? result
+            );
           }
         } else {
           try {
@@ -95,7 +119,20 @@ export function createFlowService(options: FlowServiceOptions) {
             if (error instanceof FastBrowserError && error.stage === "flow") {
               throw error;
             }
-            throw await buildAuthAwareFlowError(`Flow step failed: ${step.command}`, options.builtinHandlers);
+            throw await buildFlowFailureError(
+              `Flow step failed: ${step.command}`,
+              options.builtinHandlers,
+              {
+                stage: "flow",
+                site,
+                flowId,
+                failureType: "step",
+                stepIndex: index,
+                stepType: step.type,
+                command: step.command
+              },
+              error
+            );
           }
         }
 
@@ -109,7 +146,7 @@ export function createFlowService(options: FlowServiceOptions) {
         });
       }
 
-      const assertions = await executeAssertions(definition.success ?? [], options.builtinHandlers);
+      const assertions = await executeAssertions(definition.success ?? [], options.builtinHandlers, { site, flowId });
 
       return {
         ok: true,
@@ -328,13 +365,28 @@ function parseFlowTarget(target: string): { site: string; flowId: string } {
   return { site, flowId };
 }
 
-async function executeAssertions(assertions: FlowAssertion[], handlers: FlowBuiltinHandlers): Promise<FlowAssertionResult[]> {
+async function executeAssertions(
+  assertions: FlowAssertion[],
+  handlers: FlowBuiltinHandlers,
+  context: { site: string; flowId: string }
+): Promise<FlowAssertionResult[]> {
   const results: FlowAssertionResult[] = [];
 
   for (const [index, assertion] of assertions.entries()) {
     const result = await executeAssertion(assertion, index, handlers);
     if (!result.ok) {
-      throw await buildAuthAwareFlowError(`Flow success assertion failed: ${assertion.type}`, handlers);
+      throw await buildFlowFailureError(
+        `Flow success assertion failed: ${assertion.type}`,
+        handlers,
+        {
+          stage: "flow",
+          site: context.site,
+          flowId: context.flowId,
+          failureType: "assertion",
+          assertionIndex: index,
+          assertionType: assertion.type
+        }
+      );
     }
     results.push(result);
   }
@@ -342,9 +394,26 @@ async function executeAssertions(assertions: FlowAssertion[], handlers: FlowBuil
   return results;
 }
 
-async function buildAuthAwareFlowError(message: string, handlers: FlowBuiltinHandlers): Promise<FastBrowserError> {
+async function buildFlowFailureError(
+  message: string,
+  handlers: FlowBuiltinHandlers,
+  details: Omit<FlowFailureDetails, "diagnostics" | "cause">,
+  cause?: unknown
+): Promise<FastBrowserError> {
   const hint = await buildAuthRecoveryHint(handlers.getUrl, handlers.getTitle);
-  return new FastBrowserError("FB_FLOW_002", hint ? `${message} ${hint}` : message, "flow");
+  const diagnostics = await collectRunDiagnostics(handlers);
+  return new FastBrowserError(
+    "FB_FLOW_002",
+    hint ? `${message} ${hint}` : message,
+    "flow",
+    false,
+    cause,
+    {
+      ...details,
+      ...(diagnostics ? { diagnostics } : {}),
+      ...(cause ? { cause: toErrorShape(cause) } : {})
+    } satisfies FlowFailureDetails
+  );
 }
 
 async function buildAuthRecoveryHint(

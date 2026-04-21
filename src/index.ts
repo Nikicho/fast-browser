@@ -64,6 +64,10 @@ export async function main(argv = process.argv): Promise<void> {
   const registry = new AdapterRegistry(runtime);
   const traceStore = new ExecutionTraceStore(getExecutionTraceFilePath());
   const adapters = await registry.discover();
+  const adapterDiagnostics = registry.getLoadDiagnostics();
+  for (const diagnostic of adapterDiagnostics) {
+    console.error(`[adapter:${diagnostic.stage}] ${diagnostic.adapterId}: ${diagnostic.message}`);
+  }
   const manager = new AdapterManager({ adapters, cache, runtime, logger, sessionStore });
   const guideService = createGuideService({
     inspectSite: (url) => runtime.inspectSite(url),
@@ -96,7 +100,14 @@ export async function main(argv = process.argv): Promise<void> {
       }
       return typeof result.value === "string" ? result.value : String(result.value);
     },
-    getNetworkEntries: async () => (await runtime.networkEntries()).entries
+    getNetworkEntries: async () => (await runtime.networkEntries()).entries,
+    getConsoleLogs: async () => (await runtime.consoleLogs()).logs,
+    captureSnapshot: async () => runtime.snapshot({ interactiveOnly: false, maxItems: 100 }),
+    captureScreenshot: async () => runtime.screenshot(undefined, { fullPage: true }),
+    resetDiagnostics: async () => {
+      await runtime.consoleLogs({ clear: true });
+      await runtime.networkEntries({ clear: true });
+    }
   };
   const flowService = createFlowService({
     executeSite: async (target, params) => {
@@ -108,7 +119,7 @@ export async function main(argv = process.argv): Promise<void> {
   const commandDraftService = createCommandDraftService();
   const commandMaterializeService = createCommandMaterializeService();
   const caseService = createCaseService({
-    runFlow: (target, params) => flowService.runFlow(target, params),
+    runFlow: (target, params, runOptions) => flowService.runFlow(target, params, runOptions),
     builtinHandlers
   });
   const router = new CommandRouter({

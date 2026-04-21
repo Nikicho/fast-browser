@@ -23,7 +23,8 @@ import { getBrowserSessionMetaStateFilePath, getBrowserSessionProfileDir, getWor
 import { inferSessionIsolation } from "../shared/session-isolation";
 import { buildCommandDraftFromTrace } from "../command/trace-to-command-draft";
 import { distillCurrentTraceSegment } from "./trace-distill";
-import { FastBrowserError } from "../shared/errors";
+import { FastBrowserError, withErrorDetails } from "../shared/errors";
+import { withTracePath } from "../shared/run-diagnostics";
 import type { ReturnTypeGuideService } from "../guide/guide-service";
 import type { createCaseService } from "../case/case-service";
 import type { createCommandDraftService } from "../command/command-draft-service";
@@ -195,7 +196,11 @@ export class CommandRouter {
   }
 
   async flowRun(target: string, input?: Record<string, unknown>) {
-    return this.options.flowService.runFlow(target, input ?? {});
+    try {
+      return await this.options.flowService.runFlow(target, input ?? {});
+    } catch (error) {
+      throw this.attachTraceToRunError(error);
+    }
   }
 
   async caseSave(site: string, source: string | CaseDefinition) {
@@ -216,7 +221,11 @@ export class CommandRouter {
   }
 
   async caseRun(target: string, input?: Record<string, unknown>) {
-    return this.getCaseService().runCase(target, input ?? {});
+    try {
+      return await this.getCaseService().runCase(target, input ?? {});
+    } catch (error) {
+      throw this.attachTraceToRunError(error);
+    }
   }
 
   async commandSaveFromTrace(site: string, options: { id: string; goal: string }) {
@@ -336,6 +345,22 @@ export class CommandRouter {
       throw new FastBrowserError("FB_FLOW_001", "Latest trace current must be successful before generating a flow draft.", "flow");
     }
     return current;
+  }
+
+  private attachTraceToRunError(error: unknown): unknown {
+    if (!(error instanceof FastBrowserError) || (error.stage !== "flow" && error.stage !== "case")) {
+      return error;
+    }
+    const currentDetails = error.details && typeof error.details === "object"
+      ? error.details as Record<string, unknown>
+      : {};
+    const currentDiagnostics = currentDetails.diagnostics && typeof currentDetails.diagnostics === "object"
+      ? currentDetails.diagnostics as Parameters<typeof withTracePath>[0]
+      : undefined;
+    return withErrorDetails(error, {
+      ...currentDetails,
+      diagnostics: withTracePath(currentDiagnostics, this.options.traceStore.getPath())
+    });
   }
 
   private async assertTraceSaveContext(stage: "command" | "flow" | "case"): Promise<void> {

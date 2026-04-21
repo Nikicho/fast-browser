@@ -4,13 +4,20 @@ import { FastBrowserError, toErrorShape } from "../../../src/shared/errors";
 
 describe("toErrorShape", () => {
   it("normalizes FastBrowserError instances", () => {
-    const error = new FastBrowserError("FB_REG_001", "adapter missing", "registry", true);
+    const error = new FastBrowserError("FB_REG_001", "adapter missing", "registry", true, undefined, {
+      adapterId: "demo",
+      stage: "registry"
+    });
 
     expect(toErrorShape(error)).toEqual({
       code: "FB_REG_001",
       message: "adapter missing",
       stage: "registry",
-      retryable: true
+      retryable: true,
+      details: {
+        adapterId: "demo",
+        stage: "registry"
+      }
     });
   });
 

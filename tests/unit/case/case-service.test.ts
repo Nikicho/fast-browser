@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createCaseService } from "../../../src/case/case-service";
+import { FastBrowserError } from "../../../src/shared/errors";
 
 describe("CaseService", () => {
   const tempDirs: string[] = [];
@@ -138,8 +139,8 @@ describe("CaseService", () => {
 
     const result = await caseService.runCase("demo/checkout-smoke", { query: "phone case" });
 
-    expect(runFlow).toHaveBeenNthCalledWith(1, "demo/search-product", { query: "phone case" });
-    expect(runFlow).toHaveBeenNthCalledWith(2, "demo/open-first-result", {});
+    expect(runFlow).toHaveBeenNthCalledWith(1, "demo/search-product", { query: "phone case" }, { preserveDiagnostics: true });
+    expect(runFlow).toHaveBeenNthCalledWith(2, "demo/open-first-result", {}, { preserveDiagnostics: true });
     expect(result.ok).toBe(true);
     expect(result.uses).toHaveLength(2);
     expect(result.assertions).toEqual([
@@ -286,6 +287,158 @@ describe("CaseService", () => {
       message: "Case flow failed: first"
     });
     expect(runFlow).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns structured case failure details when a nested flow fails", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-case-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo", "cases"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "cases", "flow-details.case.json"),
+      JSON.stringify({
+        id: "flow-details",
+        kind: "case",
+        goal: "Expose nested flow failure details",
+        uses: [
+          { flow: "search", with: {} },
+          { flow: "open", with: {} }
+        ]
+      }, null, 2),
+      "utf8"
+    );
+
+    const runFlow = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, site: "demo", flowId: "search", steps: [] })
+      .mockRejectedValueOnce(new FastBrowserError("FB_FLOW_002", "Flow step failed: click", "flow", false, undefined, {
+        stage: "flow",
+        site: "demo",
+        flowId: "open",
+        failureType: "step",
+        stepIndex: 2,
+        stepType: "builtin",
+        command: "click",
+        diagnostics: {
+          capturedAt: new Date().toISOString(),
+          available: ["console", "network", "snapshot"],
+          consoleCount: 1,
+          networkCount: 1,
+          snapshot: {
+            url: "https://example.com/detail",
+            title: "Detail",
+            interactiveCount: 2,
+            textLength: 12
+          }
+        }
+      }));
+    const caseService = createCaseService({
+      adaptersDir,
+      runFlow,
+      builtinHandlers: {
+        resetDiagnostics: vi.fn(async () => undefined),
+        getUrl: vi.fn(async () => "https://example.com/detail"),
+        getTitle: vi.fn(async () => "Detail"),
+        waitForSelector: vi.fn(),
+        getSnapshotText: vi.fn(),
+        getSelectorCount: vi.fn(),
+        getElementText: vi.fn(),
+        getStorageValue: vi.fn(),
+        getNetworkEntries: vi.fn(async () => []),
+        getConsoleLogs: vi.fn(async () => []),
+        captureSnapshot: vi.fn(),
+        captureScreenshot: vi.fn()
+      } as any
+    });
+
+    await expect(caseService.runCase("demo/flow-details")).rejects.toMatchObject({
+      code: "FB_CASE_002",
+      stage: "case",
+      details: {
+        stage: "case",
+        site: "demo",
+        caseId: "flow-details",
+        failureType: "flow",
+        useIndex: 1,
+        useFlowId: "open",
+        flowFailure: {
+          flowId: "open",
+          stepIndex: 2,
+          command: "click"
+        },
+        diagnostics: {
+          available: ["console", "network", "snapshot"],
+          consoleCount: 1,
+          networkCount: 1
+        }
+      }
+    });
+    expect(runFlow).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns structured case assertion failure details with diagnostics", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-case-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo", "cases"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "cases", "assertion-details.case.json"),
+      JSON.stringify({
+        id: "assertion-details",
+        kind: "case",
+        goal: "Expose case assertion details",
+        uses: [
+          { flow: "search", with: {} }
+        ],
+        assertions: [
+          { type: "selectorVisible", value: ".missing" }
+        ]
+      }, null, 2),
+      "utf8"
+    );
+
+    const caseService = createCaseService({
+      adaptersDir,
+      runFlow: vi.fn(async () => ({ ok: true as const, site: "demo", flowId: "search", steps: [] })),
+      builtinHandlers: {
+        resetDiagnostics: vi.fn(async () => undefined),
+        getUrl: vi.fn(async () => "https://example.com/results"),
+        getTitle: vi.fn(async () => "Results"),
+        waitForSelector: vi.fn(async () => { throw new Error("not found"); }),
+        getSnapshotText: vi.fn(async () => "Results page"),
+        getSelectorCount: vi.fn(),
+        getElementText: vi.fn(),
+        getStorageValue: vi.fn(),
+        getNetworkEntries: vi.fn(async () => [{ url: "https://example.com/api/search", method: "GET", status: 200, time: Date.now() }]),
+        getConsoleLogs: vi.fn(async () => [{ type: "warn", text: "missing selector", time: Date.now() }]),
+        captureSnapshot: vi.fn(async () => ({
+          url: "https://example.com/results",
+          title: "Results",
+          text: "Results page",
+          interactive: []
+        })),
+        captureScreenshot: vi.fn(async () => ({ ok: true, url: "https://example.com/results", path: "case-assertion.png" }))
+      } as any
+    });
+
+    await expect(caseService.runCase("demo/assertion-details")).rejects.toMatchObject({
+      code: "FB_CASE_002",
+      stage: "case",
+      details: {
+        stage: "case",
+        site: "demo",
+        caseId: "assertion-details",
+        failureType: "assertion",
+        assertionIndex: 0,
+        assertionType: "selectorVisible",
+        diagnostics: {
+          available: ["console", "network", "snapshot", "screenshot"],
+          consoleCount: 1,
+          networkCount: 1,
+          screenshotPath: "case-assertion.png"
+        }
+      }
+    });
   });
   it("rejects cases with empty goal during save", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-case-"));

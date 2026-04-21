@@ -32,7 +32,10 @@ const adapterManifestSchema = z.object({
     })
   ),
   defaultTtlMs: z.number().optional(),
-  sessionPolicy: z.enum(["none", "optional", "required"]).optional()
+  sessionPolicy: z.preprocess(
+    (value) => value === "login-required" ? "required" : value,
+    z.enum(["none", "optional", "required"])
+  ).optional()
 });
 
 interface AdapterLoadDiagnostic {
@@ -98,7 +101,7 @@ export class AdapterRegistry {
         this.diagnostics.push({
           adapterId: manifest.id,
           stage: "export",
-          message: "Adapter module did not export a usable adapter object"
+          message: "Adapter module did not export a usable adapter object. Supported shapes: module.exports = adapter, module.exports = { adapter }, export default adapter, or export const adapter = ... ."
         });
         return null;
       }
@@ -129,6 +132,16 @@ function stripBom(value: string): string {
 }
 
 function toDiagnostic(adapterId: string, error: unknown): AdapterLoadDiagnostic {
+  if (error instanceof z.ZodError) {
+    const sessionPolicyIssue = error.issues.find((issue) => issue.path.join(".") === "sessionPolicy");
+    if (sessionPolicyIssue) {
+      return {
+        adapterId,
+        stage: "manifest",
+        message: "manifest.sessionPolicy must be one of: none, optional, required. Legacy value login-required is accepted and normalized to required."
+      };
+    }
+  }
   const message = error instanceof Error ? error.message : String(error);
   const normalized = message.toLowerCase();
 
@@ -143,6 +156,7 @@ function toDiagnostic(adapterId: string, error: unknown): AdapterLoadDiagnostic 
 
 function unwrapAdapterExport(imported: Record<string, unknown>): Adapter | null {
   const candidates = [
+    imported,
     imported.adapter,
     imported.default,
     getNested(imported.default, "adapter"),

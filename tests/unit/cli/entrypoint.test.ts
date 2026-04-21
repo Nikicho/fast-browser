@@ -36,7 +36,11 @@ describe("runCli", () => {
   it("prints a structured error and exits when main rejects", async () => {
     const exit = vi.fn();
     const stderr = vi.fn();
-    const error = new FastBrowserError("FB_TEST", "boom", "cli");
+    const error = new FastBrowserError("FB_TEST", "boom", "cli", false, undefined, {
+      stage: "flow",
+      flowId: "search-open",
+      stepIndex: 1
+    });
     const runMain = vi.fn(async () => {
       throw error;
     });
@@ -51,7 +55,12 @@ describe("runCli", () => {
             code: "FB_TEST",
             message: "boom",
             stage: "cli",
-            retryable: false
+            retryable: false,
+            details: {
+              stage: "flow",
+              flowId: "search-open",
+              stepIndex: 1
+            }
           }
         },
         null,

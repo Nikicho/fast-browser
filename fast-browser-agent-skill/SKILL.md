@@ -126,6 +126,15 @@ For details, load:
 - Do not save raw `snapshot` refs, one-off selectors, or real `tabId` values into formal `flow` or `case` assets.
 - Do not rely on chat memory when `trace current --json` is available.
 
+## 1.0 Working Notes
+
+- Before opening a page directly, always check `fast-browser list` and `fast-browser info <site> --json` for existing quick-navigation commands.
+- Treat stable `site command` entry points as the default navigation mechanism.
+- Prefer `fast-browser eval --file` over long inline `eval` expressions on PowerShell.
+- Prefer `fast-browser run-script <path>` over chaining many ad-hoc low-level commands when the task is multi-step but not yet a formal `flow`.
+- Use `snapshot -i --json` as structured locator discovery; prefer semantic selectors from `selectors` over raw structural selectors.
+- When a route is expected to redirect, wait on URL conditions explicitly; use runtime `waitUntilUrlContains(...)` or the CLI `wait --url ...`.
+
 ## Reference Map
 
 Priority and task selection:

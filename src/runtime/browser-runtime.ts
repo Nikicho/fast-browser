@@ -23,11 +23,13 @@ import type {
   BrowserActionSignal,
   BrowserAuthSyncResult,
   BrowserCollectResult,
+  BrowserConsoleEntry,
   BrowserExtractBlocksResult,
   BrowserGateResult,
   BrowserIsolationMode,
   BrowserLaunchOptions,
   BrowserLifecycleStatus,
+  BrowserNetworkEntry,
   BrowserProfileKind,
   BrowserRuntime,
   BrowserRuntimeInspectResult,
@@ -44,7 +46,7 @@ import type {
   SessionIdentitySource
 } from "../shared/types";
 import { BrowserSessionStateStore, BrowserStateStore } from "./browser-state";
-import { buildSnapshot } from "./snapshot";
+import { buildSnapshot, createSnapshotEvaluatorSource } from "./snapshot";
 
 type BrowserLike = any;
 type PageLike = any;
@@ -363,7 +365,19 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
       session.refs = (data.elements as any[])
         .filter((item) => item.interactive)
         .slice(0, options.maxItems ?? 200)
-        .map((item, index) => ({ ref: `@e${index + 1}`, selector: item.selector, selectors: item.selectors ?? [item.selector], text: item.text, tag: item.tag }));
+        .map((item, index) => ({
+          ref: `@e${index + 1}`,
+          selector: item.selector,
+          selectors: item.selectors ?? [item.selector],
+          text: item.text,
+          tag: item.tag,
+          placeholder: item.placeholder,
+          role: item.role,
+          ariaLabel: item.ariaLabel,
+          href: item.href,
+          name: item.name,
+          inputType: item.inputType
+        }));
       await this.persistState(context.browser, page, state, session);
       return result;
     } finally {
@@ -385,14 +399,17 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
       const resolved = await this.resolveTarget(target, session, page, state);
       const timeout = options.timeoutMs ?? 5000;
       await this.retryTransient(async () => {
-        await context.page.waitForSelector?.(resolved.selector, { timeout });
+        await context.page.waitForSelector?.(resolved.selector, { timeout, visible: true });
         await context.page.click(resolved.selector);
       }, async () => this.waitForPageReady(context.page));
       await this.waitForPageReady(context.page);
       const nextUrl = safePageUrl(context.page);
       const nextTitle = await safePageTitle(context.page);
       await this.persistState(context.browser, page, state, session);
-      return this.actionResult(nextUrl, nextTitle, resolved.selector, resolved.selectorCandidates, buildSignal(beforeUrl, beforeTitle, nextUrl, nextTitle));
+      return withTargetMetadata(
+        this.actionResult(nextUrl, nextTitle, resolved.selector, resolved.selectorCandidates, buildSignal(beforeUrl, beforeTitle, nextUrl, nextTitle)),
+        resolved
+      );
     } finally {
       await disconnectBrowser(context.browser);
     }
@@ -421,7 +438,10 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
       const nextUrl = safePageUrl(context.page);
       const nextTitle = await safePageTitle(context.page);
       await this.persistState(context.browser, page, state, session);
-      return this.actionResult(nextUrl, nextTitle, resolved.selector, resolved.selectorCandidates, buildSignal(beforeUrl, beforeTitle, nextUrl, nextTitle));
+      return withTargetMetadata(
+        this.actionResult(nextUrl, nextTitle, resolved.selector, resolved.selectorCandidates, buildSignal(beforeUrl, beforeTitle, nextUrl, nextTitle)),
+        resolved
+      );
     } finally {
       await disconnectBrowser(context.browser);
     }
@@ -460,14 +480,18 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
     const beforeUrl = safePageUrl(page);
     const beforeTitle = await safePageTitle(page);
     try {
-      if (options.target) await context.page.focus?.(options.target);
+      const resolved = options.target ? await this.resolveTarget(options.target, session, page, state) : undefined;
+      if (resolved) await context.page.focus?.(resolved.selector);
       await context.page.keyboard?.press?.(key);
-      if (key === "Enter" && options.target) await submitInput(context.page, options.target);
+      if (key === "Enter" && resolved) await submitInput(context.page, resolved.selector);
       await this.waitForPageReady(context.page);
       const nextUrl = safePageUrl(context.page);
       const nextTitle = await safePageTitle(context.page);
       await this.persistState(context.browser, page, state, session);
-      return this.actionResult(nextUrl, nextTitle, options.target, options.target ? [options.target] : undefined, buildSignal(beforeUrl, beforeTitle, nextUrl, nextTitle));
+      return withTargetMetadata(
+        this.actionResult(nextUrl, nextTitle, resolved?.selector, resolved?.selectorCandidates, buildSignal(beforeUrl, beforeTitle, nextUrl, nextTitle)),
+        resolved
+      );
     } finally {
       await disconnectBrowser(context.browser);
     }
@@ -621,6 +645,20 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
         // eslint-disable-next-line no-new-func
         return Boolean((new Function(`return (${source});`))());
       }, {}, options.fn);
+      await this.persistState(context.browser, page, state, session);
+      return this.actionResult(safePageUrl(context.page), await safePageTitle(context.page));
+    } finally {
+      await disconnectBrowser(context.browser);
+    }
+  }
+
+  async waitUntilUrlContains(urlPart: string, options: { timeoutMs?: number } = {}): Promise<BrowserActionResult> {
+    const context = await this.ensurePage();
+    const page = context.page;
+    const session = context.session ?? {} as BrowserSessionState;
+    const state = context.state ?? {} as BrowserState;
+    try {
+      await context.page.waitForFunction?.((needle: string) => window.location.href.includes(needle), { timeout: options.timeoutMs ?? 5000 }, urlPart);
       await this.persistState(context.browser, page, state, session);
       return this.actionResult(safePageUrl(context.page), await safePageTitle(context.page));
     } finally {
@@ -923,8 +961,16 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
     const pageTitle = await safePageTitle(page);
     const pageTargetId = getPageTargetId(page);
     const now = Date.now();
+    const storedSession = (await this.sessionStateStore.load()) ?? {};
     const nextState: BrowserState = { ...state, debugPort: state.debugPort, wsEndpoint: browser.wsEndpoint?.() ?? state.wsEndpoint, headless: state.headless, launchedAt: state.launchedAt ?? now, lastUsedAt: now, pinned: state.pinned, pinnedAt: state.pinnedAt, authSyncedAt: state.authSyncedAt, authHydratedAt: state.authHydratedAt };
-    const nextSession: BrowserSessionState = { ...session, updatedAt: now, refs: session.refs ?? [], consoleLogs: session.consoleLogs ?? [], networkEntries: session.networkEntries ?? [] };
+    const nextSession: BrowserSessionState = {
+      ...storedSession,
+      ...session,
+      updatedAt: now,
+      refs: session.refs ?? storedSession.refs ?? [],
+      consoleLogs: session.consoleLogs ?? storedSession.consoleLogs ?? [],
+      networkEntries: session.networkEntries ?? storedSession.networkEntries ?? []
+    };
     nextSession.previousPageTargetId = session.previousPageTargetId;
     nextSession.lastCreatedPageTargetId = session.lastCreatedPageTargetId;
     if (pageTargetId && !isBlankUrl(pageUrl)) {
@@ -943,7 +989,12 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
     await this.sessionStateStore.save(nextSession);
   }
 
-  async resolveTarget(target: string, session: BrowserSessionState, page: PageLike, state?: BrowserState): Promise<{ selector: string; selectorCandidates: string[] }> {
+  async resolveTarget(
+    target: string,
+    session: BrowserSessionState,
+    page: PageLike,
+    state?: BrowserState
+  ): Promise<{ selector: string; selectorCandidates: string[]; text?: string; placeholder?: string; role?: string; ariaLabel?: string }> {
     if (!target.startsWith("@e")) return { selector: target, selectorCandidates: [target] };
     const availableRefs = session.refs ?? (state as any)?.refs ?? [];
     let ref = availableRefs.find((item: any) => item.ref === target);
@@ -954,70 +1005,55 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
     if (!ref) throw new FastBrowserError("FB_RUNTIME_001", `Unknown snapshot ref ${target}`, "runtime");
     const candidates = Array.from(new Set([ref.selector, ...(ref.selectors ?? [])].filter(Boolean)));
     for (const candidate of candidates) {
-      if (await page.$?.(candidate)) return { selector: candidate, selectorCandidates: candidates };
+      if (await page.$?.(candidate)) {
+        return {
+          selector: candidate,
+          selectorCandidates: candidates,
+          ...(ref.text ? { text: ref.text } : {}),
+          ...(ref.placeholder ? { placeholder: ref.placeholder } : {}),
+          ...(ref.role ? { role: ref.role } : {}),
+          ...(ref.ariaLabel ? { ariaLabel: ref.ariaLabel } : {})
+        };
+      }
     }
     if (ref.text) {
       const snapshot = await this.readSnapshotData(page, { interactiveOnly: true, maxItems: 100 });
       const matched = (snapshot.elements as any[]).find((item) => item.interactive && item.text === ref?.text && (!ref?.tag || item.tag === ref.tag));
       if (matched) {
-        const nextRef = { ref: target, selector: matched.selector, selectors: matched.selectors, text: matched.text, tag: matched.tag };
+        const nextRef = {
+          ref: target,
+          selector: matched.selector,
+          selectors: matched.selectors,
+          text: matched.text,
+          tag: matched.tag,
+          placeholder: matched.placeholder,
+          role: matched.role,
+          ariaLabel: matched.ariaLabel,
+          href: matched.href,
+          name: matched.name,
+          inputType: matched.inputType
+        };
         session.refs = upsertRef(session.refs ?? [], nextRef);
-        return { selector: matched.selector, selectorCandidates: matched.selectors ?? [matched.selector] };
+        return {
+          selector: matched.selector,
+          selectorCandidates: matched.selectors ?? [matched.selector],
+          ...(matched.text ? { text: matched.text } : {}),
+          ...(matched.placeholder ? { placeholder: matched.placeholder } : {}),
+          ...(matched.role ? { role: matched.role } : {}),
+          ...(matched.ariaLabel ? { ariaLabel: matched.ariaLabel } : {})
+        };
       }
     }
     throw new FastBrowserError("FB_RUNTIME_001", `Unable to resolve snapshot ref ${target}`, "runtime");
   }
 
   async readSnapshotData(page: PageLike, options: { interactiveOnly?: boolean; selector?: string; maxItems?: number } = {}) {
-    const source = [
-      "const args = __args || {};",
-      "const root = args.selector ? document.querySelector(args.selector) : document.body;",
-      "const visible = (el) => {",
-      "  const style = window.getComputedStyle(el);",
-      "  const rect = el.getBoundingClientRect();",
-      '  return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) !== 0 && rect.width > 0 && rect.height > 0;',
-      "};",
-      `const interactive = (el) => el.matches("a,button,input,textarea,select,summary,[role='button'],[role='link'],[onclick],[contenteditable='true']") || (el.getAttribute("tabindex") !== null && Number(el.getAttribute("tabindex")) >= 0);`,
-      "const cssPath = (element) => {",
-      "  const node = element;",
-      '  if (node.id) return "#" + CSS.escape(node.id);',
-      "  const parts = [];",
-      "  let current = element;",
-      "  while (current && parts.length < 6) {",
-      "    const parent = current.parentElement;",
-      "    const tag = current.tagName.toLowerCase();",
-      "    if (!parent) { parts.unshift(tag); break; }",
-      "    const siblings = Array.from(parent.children).filter((item) => item.tagName === current.tagName);",
-      '    parts.unshift(tag + ":nth-of-type(" + (siblings.indexOf(current) + 1) + ")");',
-      "    current = parent;",
-      "  }",
-      '  return parts.join(" > " );',
-      "};",
-      `const elements = Array.from(root ? root.querySelectorAll("*") : []).filter((el) => visible(el)).map((el) => {`,
-      "  const node = el;",
-      "  const selector = cssPath(node);",
-      "  const selectors = [selector];",
-      '  const id = node.getAttribute("id");',
-      '  const dataTestId = node.getAttribute("data-testid");',
-      '  const ariaLabel = node.getAttribute("aria-label");',
-      '  if (id) selectors.unshift("#" + CSS.escape(id));',
-      '  if (dataTestId) selectors.unshift(node.tagName.toLowerCase() + "[data-testid=" + JSON.stringify(String(dataTestId)) + "]");',
-      '  if (ariaLabel) selectors.unshift(node.tagName.toLowerCase() + "[aria-label=" + JSON.stringify(String(ariaLabel)) + "]");',
-      "  return {",
-      "    tag: node.tagName.toLowerCase(),",
-      '    text: (node.innerText || node.textContent || "").trim().replace(/\s+/g, " " ).slice(0, 160),',
-      "    selector: selectors[0] || selector,",
-      "    selectors: Array.from(new Set(selectors.filter(Boolean))).slice(0, 5),",
-      "    interactive: interactive(node),",
-      '    className: typeof node.className === "string" ? node.className : ""',
-      "  };",
-      "}).filter((item) => args.interactiveOnly ? item.interactive : Boolean(item.text || item.interactive)).slice(0, args.maxItems || 200);",
-      "return { url: window.location.href, title: document.title, elements };"
-    ].join("\n");
+    const source = createSnapshotEvaluatorSource();
     return await page.evaluate(
       ({ script, args }: { script: string; args: { interactiveOnly?: boolean; selector?: string; maxItems?: number } }) => {
-        const fn = new Function("__args", script);
-        return fn(args);
+        const factory = new Function(`return ${script};`);
+        const evaluator = factory();
+        return evaluator(args);
       },
       { script: source, args: options }
     );
@@ -1035,6 +1071,27 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
 
   async installInstrumentation(page: PageLike): Promise<void> {
     try { await page.evaluateOnNewDocument?.("window.__FAST_BROWSER_INSTRUMENTED__=true;"); } catch {}
+    const instrumentedPage = page as { __fastBrowserInstrumented?: boolean };
+    if (instrumentedPage.__fastBrowserInstrumented) {
+      return;
+    }
+    instrumentedPage.__fastBrowserInstrumented = true;
+    page.on?.("console", async (message: any) => {
+      await this.appendConsoleLog({
+        type: String(message?.type?.() ?? "log"),
+        text: String(message?.text?.() ?? ""),
+        time: Date.now()
+      });
+    });
+    page.on?.("response", async (response: any) => {
+      await this.appendNetworkEntry({
+        url: String(response?.url?.() ?? ""),
+        method: String(response?.request?.()?.method?.() ?? "GET"),
+        status: typeof response?.status?.() === "number" ? response.status() : undefined,
+        resourceType: String(response?.request?.()?.resourceType?.() ?? ""),
+        time: Date.now()
+      });
+    });
   }
 
   async waitForPageReady(page: PageLike): Promise<void> {
@@ -1246,6 +1303,20 @@ export class BrowserRuntimeFacade implements BrowserRuntime {
     } catch {}
   }
 
+  private async appendConsoleLog(entry: BrowserConsoleEntry): Promise<void> {
+    await this.sessionStateStore.update((current) => ({
+      ...current,
+      consoleLogs: [...(current.consoleLogs ?? []), entry].slice(-200)
+    }));
+  }
+
+  private async appendNetworkEntry(entry: BrowserNetworkEntry): Promise<void> {
+    await this.sessionStateStore.update((current) => ({
+      ...current,
+      networkEntries: [...(current.networkEntries ?? []), entry].slice(-200)
+    }));
+  }
+
   private async navigate(page: PageLike, url: string) {
     try {
       await this.retryTransient(async () => {
@@ -1299,9 +1370,41 @@ function normalizeComparableUrl(value: URL): string {
   return `${pathname}${value.search}`;
 }
 async function readInputValue(page: PageLike, selector: string): Promise<string> { try { return await page.$eval?.(selector, (node: any) => node?.value ?? "") ?? ""; } catch { return ""; } }
-async function setInputValue(page: PageLike, selector: string, value: string): Promise<void> { await page.$eval?.(selector, (node: any, nextValue: string) => { const element = node as HTMLInputElement | HTMLTextAreaElement; const proto = Object.getPrototypeOf(element); const descriptor = Object.getOwnPropertyDescriptor(proto, "value"); descriptor?.set?.call(element, nextValue); element.dispatchEvent(new Event("input", { bubbles: true })); element.dispatchEvent(new Event("change", { bubbles: true })); }, value); }
+async function setInputValue(page: PageLike, selector: string, value: string): Promise<void> {
+  await page.$eval?.(selector, (node: any, nextValue: string) => {
+    const element = node as {
+      value?: string;
+      dispatchEvent?: (event: Event) => void;
+      ownerDocument?: { defaultView?: Window };
+    };
+    const proto = Object.getPrototypeOf(element);
+    const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
+    descriptor?.set?.call(element, nextValue);
+    const eventCtor = (((element.ownerDocument?.defaultView as { Event?: typeof Event } | undefined)?.Event) ?? Event) as typeof Event;
+    element.dispatchEvent?.(new eventCtor("input", { bubbles: true }));
+    element.dispatchEvent?.(new eventCtor("change", { bubbles: true }));
+  }, value);
+}
 async function submitInput(page: PageLike, selector: string): Promise<void> { try { await page.$eval?.(selector, (node: any) => { const form = (node as HTMLElement).closest("form") as HTMLFormElement | null; if (!form) return; if (typeof form.requestSubmit === "function") form.requestSubmit(); else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); }); } catch {} }
-function upsertRef(refs: Array<{ ref: string; selector: string; selectors?: string[]; text?: string; tag?: string }>, nextRef: { ref: string; selector: string; selectors?: string[]; text?: string; tag?: string }) { return [...refs.filter((item) => item.ref !== nextRef.ref), nextRef]; }
+function withTargetMetadata(
+  result: BrowserActionResult,
+  resolved?: { text?: string; placeholder?: string; role?: string; ariaLabel?: string }
+): BrowserActionResult {
+  if (!resolved) {
+    return result;
+  }
+  return {
+    ...result,
+    ...(resolved.text ? { text: resolved.text } : {}),
+    ...(resolved.placeholder ? { placeholder: resolved.placeholder } : {}),
+    ...(resolved.role ? { role: resolved.role } : {}),
+    ...(resolved.ariaLabel ? { ariaLabel: resolved.ariaLabel } : {})
+  };
+}
+function upsertRef(
+  refs: Array<{ ref: string; selector: string; selectors?: string[]; text?: string; tag?: string; placeholder?: string; role?: string; ariaLabel?: string; href?: string; name?: string; inputType?: string }>,
+  nextRef: { ref: string; selector: string; selectors?: string[]; text?: string; tag?: string; placeholder?: string; role?: string; ariaLabel?: string; href?: string; name?: string; inputType?: string }
+) { return [...refs.filter((item) => item.ref !== nextRef.ref), nextRef]; }
 async function copyIfExists(from: string, to: string): Promise<boolean> { try { await fs.access(from); } catch { return false; } await fs.mkdir(path.dirname(to), { recursive: true }); await fs.copyFile(from, to); return true; }
 async function copyDir(from: string, to: string): Promise<void> { await fs.mkdir(to, { recursive: true }); for (const entry of await fs.readdir(from, { withFileTypes: true })) { if (PROFILE_SKIP.has(entry.name)) continue; const src = path.join(from, entry.name); const dest = path.join(to, entry.name); if (entry.isDirectory()) await copyDir(src, dest); else if (entry.isFile()) { await fs.mkdir(path.dirname(dest), { recursive: true }); await fs.copyFile(src, dest); } } }
 async function resolveChromeExecutablePath(): Promise<string> { const candidates = process.platform === "win32" ? [process.env.CHROME_PATH, "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe", path.join(process.env.LOCALAPPDATA ?? "", "Google", "Chrome", "Application", "chrome.exe"), "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"] : process.platform === "darwin" ? [process.env.CHROME_PATH, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"] : [process.env.CHROME_PATH, "/usr/bin/google-chrome", "/usr/bin/chromium-browser", "/usr/bin/chromium"]; for (const candidate of candidates) { if (!candidate) continue; try { await fs.access(candidate); return candidate; } catch {} } throw new FastBrowserError("FB_RUNTIME_001", "Chrome executable not found", "runtime"); }

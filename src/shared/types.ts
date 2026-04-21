@@ -29,6 +29,52 @@ export interface FastBrowserErrorShape {
   stage: ErrorStage;
   retryable: boolean;
   cause?: unknown;
+  details?: unknown;
+}
+
+export type RunDiagnosticArtifact = "console" | "network" | "snapshot" | "screenshot" | "trace";
+
+export interface RunDiagnosticsSummary {
+  capturedAt: string;
+  available: RunDiagnosticArtifact[];
+  consoleCount?: number;
+  networkCount?: number;
+  snapshot?: {
+    url: string;
+    title: string;
+    interactiveCount: number;
+    textLength: number;
+  };
+  screenshotPath?: string;
+  tracePath?: string;
+}
+
+export interface FlowFailureDetails {
+  stage: "flow";
+  site: string;
+  flowId: string;
+  failureType: "step" | "assertion";
+  stepIndex?: number;
+  stepType?: FlowStep["type"];
+  command?: string;
+  assertionIndex?: number;
+  assertionType?: FlowAssertionType;
+  diagnostics?: RunDiagnosticsSummary;
+  cause?: FastBrowserErrorShape;
+}
+
+export interface CaseFailureDetails {
+  stage: "case";
+  site: string;
+  caseId: string;
+  failureType: "flow" | "assertion";
+  useIndex?: number;
+  useFlowId?: string;
+  assertionIndex?: number;
+  assertionType?: FlowAssertionType;
+  flowFailure?: FlowFailureDetails;
+  diagnostics?: RunDiagnosticsSummary;
+  cause?: FastBrowserErrorShape;
 }
 
 export interface AdapterArg {
@@ -115,6 +161,13 @@ export interface BrowserSnapshotInput {
   interactive: boolean;
   className?: string;
   selectors?: string[];
+  attributes?: Record<string, string>;
+  placeholder?: string;
+  role?: string;
+  ariaLabel?: string;
+  href?: string;
+  name?: string;
+  inputType?: string;
 }
 
 export interface BrowserSnapshotRef {
@@ -122,6 +175,13 @@ export interface BrowserSnapshotRef {
   tag: string;
   text: string;
   selector: string;
+  selectors?: string[];
+  placeholder?: string;
+  role?: string;
+  ariaLabel?: string;
+  href?: string;
+  name?: string;
+  inputType?: string;
 }
 
 export interface BrowserSnapshotResult {
@@ -212,7 +272,19 @@ export interface BrowserSessionState {
   pageTitle?: string;
   previousPageTargetId?: string;
   lastCreatedPageTargetId?: string;
-  refs?: Array<{ ref: string; selector: string; selectors?: string[]; text?: string; tag?: string }>;
+  refs?: Array<{
+    ref: string;
+    selector: string;
+    selectors?: string[];
+    text?: string;
+    tag?: string;
+    placeholder?: string;
+    role?: string;
+    ariaLabel?: string;
+    href?: string;
+    name?: string;
+    inputType?: string;
+  }>;
   consoleLogs?: BrowserConsoleEntry[];
   networkEntries?: BrowserNetworkEntry[];
 }
@@ -232,7 +304,19 @@ export interface BrowserState {
   lastNonBlankPageTitle?: string;
   sessions?: Record<string, BrowserSessionState>;
   pageTargetId?: string;
-  refs?: Array<{ ref: string; selector: string; selectors?: string[]; text?: string; tag?: string }>;
+  refs?: Array<{
+    ref: string;
+    selector: string;
+    selectors?: string[];
+    text?: string;
+    tag?: string;
+    placeholder?: string;
+    role?: string;
+    ariaLabel?: string;
+    href?: string;
+    name?: string;
+    inputType?: string;
+  }>;
   consoleLogs?: BrowserConsoleEntry[];
   networkEntries?: BrowserNetworkEntry[];
 }
@@ -387,6 +471,7 @@ export interface BrowserRuntime {
   getUrl(): Promise<string>;
   getTitle(): Promise<string>;
   wait(options: { ms?: number; text?: string; urlIncludes?: string; fn?: string }): Promise<BrowserActionResult>;
+  waitUntilUrlContains(urlPart: string, options?: { timeoutMs?: number }): Promise<BrowserActionResult>;
   waitForSelector(selector: string, options?: { timeoutMs?: number; state?: "attached" | "visible" | "hidden" }): Promise<BrowserActionResult>;
   handleGate(options?: { text?: string }): Promise<BrowserGateResult>;
   collect(selector: string, options?: { limit?: number; scrollStep?: number; maxRounds?: number }): Promise<BrowserCollectResult>;
@@ -728,9 +813,6 @@ export interface GuidePromptDependencies {
   prompt(initial?: Partial<GuideAnswers>): Promise<GuideAnswers>;
   inspectSite(url: string): Promise<BrowserRuntimeInspectResult>;
 }
-
-
-
 
 
 

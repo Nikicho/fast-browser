@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 
 
+import { FastBrowserError } from "../../../src/shared/errors";
 import { CommandRouter } from "../../../src/core/command-router";
 
 
@@ -1771,6 +1772,164 @@ describe("CommandRouter auth and session lifecycle", () => {
     });
 
     expect(runtime.sessionCleanup).toHaveBeenCalledWith({ maxAgeHours: 24 });
+
+  });
+
+  it("adds tracePath to flow failure diagnostics", async () => {
+
+    const router = new CommandRouter({
+
+      adapterManager: {} as any,
+
+      adapterRegistry: {} as any,
+
+      cache: {} as any,
+
+      runtime: {} as any,
+
+      guideService: {} as any,
+
+      flowService: {
+
+        runFlow: vi.fn(async () => {
+
+          throw new FastBrowserError("FB_FLOW_002", "Flow step failed: click", "flow", false, undefined, {
+
+            stage: "flow",
+
+            site: "demo",
+
+            flowId: "search-open",
+
+            failureType: "step",
+
+            stepIndex: 1,
+
+            command: "click",
+
+            diagnostics: {
+
+              capturedAt: new Date().toISOString(),
+
+              available: ["console"],
+
+              consoleCount: 1
+
+            }
+
+          });
+
+        })
+
+      } as any,
+
+      traceStore: {
+
+        getPath: () => "D:/AIWorks/skills/fast-browser/.fast-browser/sessions/demo/events.jsonl"
+
+      } as any
+
+    });
+
+
+
+    await expect(router.flowRun("demo/search-open")).rejects.toMatchObject({
+
+      details: {
+
+        diagnostics: {
+
+          available: ["console", "trace"],
+
+          consoleCount: 1,
+
+          tracePath: "D:/AIWorks/skills/fast-browser/.fast-browser/sessions/demo/events.jsonl"
+
+        }
+
+      }
+
+    });
+
+  });
+
+  it("adds tracePath to case failure diagnostics", async () => {
+
+    const router = new CommandRouter({
+
+      adapterManager: {} as any,
+
+      adapterRegistry: {} as any,
+
+      cache: {} as any,
+
+      runtime: {} as any,
+
+      guideService: {} as any,
+
+      flowService: {} as any,
+
+      caseService: {
+
+        runCase: vi.fn(async () => {
+
+          throw new FastBrowserError("FB_CASE_002", "Case assertion failed: selectorVisible", "case", false, undefined, {
+
+            stage: "case",
+
+            site: "demo",
+
+            caseId: "checkout-smoke",
+
+            failureType: "assertion",
+
+            assertionIndex: 0,
+
+            assertionType: "selectorVisible",
+
+            diagnostics: {
+
+              capturedAt: new Date().toISOString(),
+
+              available: ["network"],
+
+              networkCount: 2
+
+            }
+
+          });
+
+        })
+
+      } as any,
+
+      traceStore: {
+
+        getPath: () => "D:/AIWorks/skills/fast-browser/.fast-browser/sessions/demo/events.jsonl"
+
+      } as any
+
+    });
+
+
+
+    await expect(router.caseRun("demo/checkout-smoke")).rejects.toMatchObject({
+
+      details: {
+
+        diagnostics: {
+
+          available: ["network", "trace"],
+
+          networkCount: 2,
+
+          tracePath: "D:/AIWorks/skills/fast-browser/.fast-browser/sessions/demo/events.jsonl"
+
+        }
+
+      }
+
+    });
 
   });
 
