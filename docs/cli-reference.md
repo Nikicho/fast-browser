@@ -632,7 +632,7 @@ fast-browser sessionStorage set token abc --json
 ```bash
 fast-browser site zhihu/search --keyword "AI"
 fast-browser site google/search --input '{"query":"fast-browser"}'
-fast-browser site react-admin/list-posts --no-cache --json
+fast-browser site github/search --input '{"query":"openai"}' --json
 ```
 
 参数：
@@ -791,8 +791,8 @@ fast-browser case list zhihu --json
 
 ```bash
 fast-browser case run zhihu/hot-page-loads
-fast-browser case run react-admin/list-edit-route-a1-smoke --json
-fast-browser case run opencart/login-filter-create-route-b2-smoke --input '{"username":"demo"}'
+fast-browser case run bilibili/popular-page-loads --json
+fast-browser case run zhihu/search-route-loads --input '{"keyword":"AI"}'
 ```
 
 参数：

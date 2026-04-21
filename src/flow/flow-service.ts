@@ -18,7 +18,8 @@ import type {
   FlowListItem,
   FlowRunResult,
   FlowRunStepResult,
-  FlowSaveResult
+  FlowSaveResult,
+  FlowStep
 } from "../shared/types";
 
 interface FlowBuiltinHandlers {
@@ -231,6 +232,8 @@ function validateFlowDefinition(definition: FlowDefinition): void {
 }
 
 async function validateFlowSaveSource(site: string, definition: FlowDefinition, source: string | FlowDefinition, adaptersDir: string): Promise<void> {
+  validateFlowAssetQuality(definition);
+
   if (typeof source === "string") {
     const expectedFileName = `${definition.id}.flow.json`;
     if (path.basename(source) !== expectedFileName) {
@@ -259,6 +262,24 @@ async function validateFlowSaveSource(site: string, definition: FlowDefinition, 
     if (!commandName || !commandNames.has(commandName)) {
       throw new FastBrowserError("FB_FLOW_001", `Flow site step command not found in manifest: ${step.command}`, "flow");
     }
+  }
+}
+
+function validateFlowAssetQuality(definition: FlowDefinition): void {
+  if (hasVersionSuffix(definition.id)) {
+    throw new FastBrowserError("FB_FLOW_001", "Flow id must not use version suffixes like -v2 or -v3", "flow");
+  }
+
+  if (hasDuplicateConsecutiveSteps(definition.steps)) {
+    throw new FastBrowserError("FB_FLOW_001", "Flow must not contain duplicate consecutive steps", "flow");
+  }
+
+  if (isRouteLikeHardcodedDetailFlow(definition)) {
+    throw new FastBrowserError(
+      "FB_FLOW_001",
+      "Route-like flow must use reusable site steps instead of hardcoded detail URLs",
+      "flow"
+    );
   }
 }
 
@@ -363,6 +384,53 @@ function parseFlowTarget(target: string): { site: string; flowId: string } {
     throw new FastBrowserError("FB_FLOW_001", `Invalid flow target: ${target}`, "flow");
   }
   return { site, flowId };
+}
+
+function hasVersionSuffix(id: string): boolean {
+  return /-v\d+$/i.test(id);
+}
+
+function hasDuplicateConsecutiveSteps(steps: FlowStep[]): boolean {
+  for (let index = 1; index < steps.length; index += 1) {
+    if (serializeFlowStep(steps[index - 1]) === serializeFlowStep(steps[index])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function serializeFlowStep(step: FlowStep): string {
+  return JSON.stringify({
+    type: step.type,
+    command: step.command,
+    with: step.with ?? null
+  });
+}
+
+function isRouteLikeHardcodedDetailFlow(definition: FlowDefinition): boolean {
+  const routeLikeText = `${definition.id} ${definition.goal}`;
+  if (!/(route|path|路径|详情|detail|question|video|进入)/i.test(routeLikeText)) {
+    return false;
+  }
+  if (definition.steps.some((step) => step.type === "site")) {
+    return false;
+  }
+  return definition.steps.some((step) => {
+    if (step.type !== "builtin" || (step.command !== "open" && step.command !== "tabNew")) {
+      return false;
+    }
+    const url = asString(step.with?.url);
+    return looksLikeHardcodedDetailUrl(url);
+  });
+}
+
+function looksLikeHardcodedDetailUrl(url: string | undefined): boolean {
+  if (!url || /\$\{/.test(url)) {
+    return false;
+  }
+  return /\/(detail|video|question|show|edit)(?:\/|$|\?)/i.test(url)
+    || /\/bv[a-z0-9]+(?:[/?#]|$)/i.test(url)
+    || /\/\d{2,}(?:[/?#]|$)/.test(url);
 }
 
 async function executeAssertions(

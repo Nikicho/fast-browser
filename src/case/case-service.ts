@@ -169,6 +169,8 @@ function validateCaseDefinition(definition: CaseDefinition): void {
 }
 
 async function validateCaseSaveSource(site: string, definition: CaseDefinition, source: string | CaseDefinition, adaptersDir: string): Promise<void> {
+  validateCaseAssetQuality(definition);
+
   if (typeof source === "string") {
     const expectedFileName = `${definition.id}.case.json`;
     if (path.basename(source) !== expectedFileName) {
@@ -200,6 +202,20 @@ async function validateCaseSaveSource(site: string, definition: CaseDefinition, 
     if (flowDefinition.kind !== "flow" || flowDefinition.id !== use.flow) {
       throw new FastBrowserError("FB_CASE_001", `Referenced flow id does not match file name: ${site}/${use.flow}`, "case");
     }
+  }
+}
+
+function validateCaseAssetQuality(definition: CaseDefinition): void {
+  if (hasVersionSuffix(definition.id)) {
+    throw new FastBrowserError("FB_CASE_001", "Case id must not use version suffixes like -v2 or -v3", "case");
+  }
+
+  if (!definition.assertions?.some((assertion) => assertion.type !== "titleNotEmpty")) {
+    throw new FastBrowserError(
+      "FB_CASE_001",
+      "Case must contain at least one semantic assertion beyond titleNotEmpty",
+      "case"
+    );
   }
 }
 
@@ -290,6 +306,10 @@ function parseCaseTarget(target: string): { site: string; caseId: string } {
     throw new FastBrowserError("FB_CASE_001", `Invalid case target: ${target}`, "case");
   }
   return { site, caseId };
+}
+
+function hasVersionSuffix(id: string): boolean {
+  return /-v\d+$/i.test(id);
 }
 
 async function executeAssertions(

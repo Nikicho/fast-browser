@@ -131,6 +131,138 @@ describe("FlowService", () => {
     );
   });
 
+  it("rejects saving version-suffixed flows as formal assets", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-flow-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "manifest.json"),
+      JSON.stringify({
+        id: "demo",
+        displayName: "Demo",
+        version: "1.0.0",
+        platform: "demo",
+        description: "Demo",
+        commands: [{ name: "search", description: "Search", args: [], example: "demo" }]
+      }, null, 2),
+      "utf8"
+    );
+    const sourcePath = path.join(root, "search-route-v2.flow.json");
+    await fs.writeFile(
+      sourcePath,
+      JSON.stringify({
+        id: "search-route-v2",
+        kind: "flow",
+        goal: "Versioned flow should be rejected",
+        steps: [{ type: "site", command: "demo/search" }]
+      }, null, 2),
+      "utf8"
+    );
+
+    const flowService = createFlowService({
+      adaptersDir,
+      executeSite: vi.fn(),
+      builtinHandlers: {} as any
+    });
+
+    await expect(flowService.saveFlow("demo", sourcePath)).rejects.toMatchObject({
+      code: "FB_FLOW_001",
+      stage: "flow",
+      message: "Flow id must not use version suffixes like -v2 or -v3"
+    });
+  });
+
+  it("rejects saving flows with duplicate consecutive steps", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-flow-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "manifest.json"),
+      JSON.stringify({
+        id: "demo",
+        displayName: "Demo",
+        version: "1.0.0",
+        platform: "demo",
+        description: "Demo",
+        commands: [{ name: "search", description: "Search", args: [], example: "demo" }]
+      }, null, 2),
+      "utf8"
+    );
+    const sourcePath = path.join(root, "duplicate.flow.json");
+    await fs.writeFile(
+      sourcePath,
+      JSON.stringify({
+        id: "duplicate",
+        kind: "flow",
+        goal: "Reject duplicated steps",
+        steps: [
+          { type: "site", command: "demo/search", with: { query: "ai" } },
+          { type: "site", command: "demo/search", with: { query: "ai" } }
+        ]
+      }, null, 2),
+      "utf8"
+    );
+
+    const flowService = createFlowService({
+      adaptersDir,
+      executeSite: vi.fn(),
+      builtinHandlers: {} as any
+    });
+
+    await expect(flowService.saveFlow("demo", sourcePath)).rejects.toMatchObject({
+      code: "FB_FLOW_001",
+      stage: "flow",
+      message: "Flow must not contain duplicate consecutive steps"
+    });
+  });
+
+  it("rejects route-like flows that hardcode detail urls without reusable site steps", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-flow-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "manifest.json"),
+      JSON.stringify({
+        id: "demo",
+        displayName: "Demo",
+        version: "1.0.0",
+        platform: "demo",
+        description: "Demo",
+        commands: [{ name: "listing", description: "Listing", args: [], example: "demo" }]
+      }, null, 2),
+      "utf8"
+    );
+    const sourcePath = path.join(root, "detail-route.flow.json");
+    await fs.writeFile(
+      sourcePath,
+      JSON.stringify({
+        id: "detail-route",
+        kind: "flow",
+        goal: "Open listing to detail route",
+        steps: [
+          { type: "builtin", command: "tabNew", with: { url: "https://example.com/detail/42" } },
+          { type: "builtin", command: "tabSwitch", with: { target: "lastCreated" } }
+        ]
+      }, null, 2),
+      "utf8"
+    );
+
+    const flowService = createFlowService({
+      adaptersDir,
+      executeSite: vi.fn(),
+      builtinHandlers: {} as any
+    });
+
+    await expect(flowService.saveFlow("demo", sourcePath)).rejects.toMatchObject({
+      code: "FB_FLOW_001",
+      stage: "flow",
+      message: "Route-like flow must use reusable site steps instead of hardcoded detail URLs"
+    });
+  });
+
   it("runs sequential site and builtin steps with parameter substitution", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-flow-"));
     tempDirs.push(root);

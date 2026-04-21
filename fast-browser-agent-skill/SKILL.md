@@ -125,6 +125,10 @@ For details, load:
 - Save formal assets to the active Fast-Browser workspace, never to the skill directory.
 - Do not save raw `snapshot` refs, one-off selectors, or real `tabId` values into formal `flow` or `case` assets.
 - Do not rely on chat memory when `trace current --json` is available.
+- Do not save formal `flow` / `case` assets with `-v2` / `-v3` style ids. Keep only one best formal asset, and replace it instead of versioning around it.
+- Do not promote route-like `flow` assets that only hardcode detail URLs through `open` / `tabNew`. A formal route should be built from reusable `site` steps.
+- Do not save duplicate consecutive flow steps just because they appeared during exploration. Clean them before promotion.
+- Do not save a formal `case` that only checks `titleNotEmpty`. A case must contain at least one semantic assertion such as URL, text, selector count, storage, or network expectations.
 
 ## 1.0 Working Notes
 

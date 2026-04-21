@@ -1,6 +1,6 @@
 {
   "name": "fast-browser",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A high-performance browser automation and site adapter framework for AI agents.",
   "license": "UNLICENSED",
   "files": [

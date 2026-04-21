@@ -37,7 +37,8 @@ describe("CaseService", () => {
         id: "search-repo",
         kind: "case",
         goal: "Verify search works",
-        uses: [{ flow: "search-open", with: { query: "fast-browser" } }]
+        uses: [{ flow: "search-open", with: { query: "fast-browser" } }],
+        assertions: [{ type: "urlIncludes", value: "/search" }]
       }, null, 2),
       "utf8"
     );
@@ -89,6 +90,88 @@ describe("CaseService", () => {
     const raw = await fs.readFile(result.path, "utf8");
     expect(raw.charCodeAt(0)).toBe(0xfeff);
     expect(raw).toContain("人工智能");
+  });
+
+  it("rejects saving version-suffixed cases as formal assets", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-case-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo", "flows"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "flows", "search-open.flow.json"),
+      JSON.stringify({
+        id: "search-open",
+        kind: "flow",
+        goal: "Search and open",
+        steps: [{ type: "site", command: "demo/search" }]
+      }, null, 2),
+      "utf8"
+    );
+    const sourcePath = path.join(root, "search-smoke-v2.case.json");
+    await fs.writeFile(
+      sourcePath,
+      JSON.stringify({
+        id: "search-smoke-v2",
+        kind: "case",
+        goal: "Versioned case should be rejected",
+        uses: [{ flow: "search-open" }],
+        assertions: [{ type: "urlIncludes", value: "/search" }]
+      }, null, 2),
+      "utf8"
+    );
+
+    const caseService = createCaseService({
+      adaptersDir,
+      runFlow: vi.fn(),
+      builtinHandlers: {} as any
+    });
+
+    await expect(caseService.saveCase("demo", sourcePath)).rejects.toMatchObject({
+      code: "FB_CASE_001",
+      stage: "case",
+      message: "Case id must not use version suffixes like -v2 or -v3"
+    });
+  });
+
+  it("rejects saving cases that only assert title presence", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-case-"));
+    tempDirs.push(root);
+    const adaptersDir = path.join(root, "src", "adapters");
+    await fs.mkdir(path.join(adaptersDir, "demo", "flows"), { recursive: true });
+    await fs.writeFile(
+      path.join(adaptersDir, "demo", "flows", "search-open.flow.json"),
+      JSON.stringify({
+        id: "search-open",
+        kind: "flow",
+        goal: "Search and open",
+        steps: [{ type: "site", command: "demo/search" }]
+      }, null, 2),
+      "utf8"
+    );
+    const sourcePath = path.join(root, "weak.case.json");
+    await fs.writeFile(
+      sourcePath,
+      JSON.stringify({
+        id: "weak",
+        kind: "case",
+        goal: "Weak case should be rejected",
+        uses: [{ flow: "search-open" }],
+        assertions: [{ type: "titleNotEmpty" }]
+      }, null, 2),
+      "utf8"
+    );
+
+    const caseService = createCaseService({
+      adaptersDir,
+      runFlow: vi.fn(),
+      builtinHandlers: {} as any
+    });
+
+    await expect(caseService.saveCase("demo", sourcePath)).rejects.toMatchObject({
+      code: "FB_CASE_001",
+      stage: "case",
+      message: "Case must contain at least one semantic assertion beyond titleNotEmpty"
+    });
   });
 
   it("runs multiple flows sequentially and evaluates assertions after them", async () => {
@@ -480,7 +563,8 @@ describe("CaseService", () => {
         id: "actual-id",
         kind: "case",
         goal: "Reject mismatched file name",
-        uses: [{ flow: "search-open" }]
+        uses: [{ flow: "search-open" }],
+        assertions: [{ type: "urlIncludes", value: "/search" }]
       }, null, 2),
       "utf8"
     );
@@ -521,7 +605,8 @@ describe("CaseService", () => {
         id: "search-repo",
         kind: "case",
         goal: "Session draft",
-        uses: [{ flow: "search-open" }]
+        uses: [{ flow: "search-open" }],
+        assertions: [{ type: "urlIncludes", value: "/search" }]
       }, null, 2),
       "utf8"
     );
@@ -551,7 +636,8 @@ describe("CaseService", () => {
         id: "missing-flow",
         kind: "case",
         goal: "Reject missing flow refs",
-        uses: [{ flow: "search-open" }]
+        uses: [{ flow: "search-open" }],
+        assertions: [{ type: "urlIncludes", value: "/search" }]
       }, null, 2),
       "utf8"
     );
@@ -591,7 +677,8 @@ describe("CaseService", () => {
         id: "bad-flow-ref",
         kind: "case",
         goal: "Reject inconsistent flow refs",
-        uses: [{ flow: "search-open" }]
+        uses: [{ flow: "search-open" }],
+        assertions: [{ type: "urlIncludes", value: "/search" }]
       }, null, 2),
       "utf8"
     );

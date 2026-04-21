@@ -86,6 +86,10 @@ fast-browser trace current --json
 
 - 如果只有 DOM 动作，没有页面级成功信号，应视为弱证据
 - 如果只靠一次性的 `@eN` 成功，且没有稳定 selector 语义，不要直接提升
+- 不要把同一条正式资产保存成 `-v2`、`-v3` 一类变体；正式目录里只保留一份最佳版本
+- 如果一个“route”类 flow 只是通过固定 detail URL `open` / `tabNew` 到目标页，它不是合格的正式 flow
+- 如果 flow 里出现连续重复步骤，先清洗再保存，不要把探索噪音写进正式资产
+- 如果 case 只有 `titleNotEmpty`，它通常只是弱 smoke，不足以作为正式验证资产
 
 ## 好候选与坏候选
 
