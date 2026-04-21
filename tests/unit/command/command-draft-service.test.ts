@@ -8,8 +8,14 @@ import { createCommandDraftService } from "../../../src/command/command-draft-se
 
 describe("command draft service", () => {
   const tempDirs: string[] = [];
+  const originalHome = process.env.FAST_BROWSER_HOME;
 
   afterEach(async () => {
+    if (originalHome === undefined) {
+      delete process.env.FAST_BROWSER_HOME;
+    } else {
+      process.env.FAST_BROWSER_HOME = originalHome;
+    }
     await Promise.all(tempDirs.splice(0).map(async (dir) => {
       await fs.rm(dir, { recursive: true, force: true });
     }));
@@ -17,7 +23,9 @@ describe("command draft service", () => {
 
   it("saves a command draft into the session draft directory", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-command-"));
-    tempDirs.push(root);
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-home-"));
+    tempDirs.push(root, home);
+    process.env.FAST_BROWSER_HOME = home;
 
     const service = createCommandDraftService({
       root,
@@ -80,8 +88,8 @@ describe("command draft service", () => {
       ok: true,
       site: "demo",
       commandId: "search-query",
-      path: path.join(root, ".fast-browser", "sessions", "demo-a", "drafts", "commands", "demo", "search-query.command.draft.json"),
-      nextSuggestedCommand: `fast-browser command materialize --draft ${JSON.stringify(path.join(root, ".fast-browser", "sessions", "demo-a", "drafts", "commands", "demo", "search-query.command.draft.json"))}`
+      path: path.join(home, "sessions", "demo-a", "drafts", "commands", "demo", "search-query.command.draft.json"),
+      nextSuggestedCommand: `fast-browser command materialize --draft ${JSON.stringify(path.join(home, "sessions", "demo-a", "drafts", "commands", "demo", "search-query.command.draft.json"))}`
     });
 
     const saved = JSON.parse(await fs.readFile(result.path, "utf8"));

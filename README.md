@@ -109,7 +109,7 @@ fast-browser list
 
 - npm package：[`fast-browser`](https://www.npmjs.com/package/fast-browser)
 - GitHub repo：[`Nikicho/fast-browser`](https://github.com/Nikicho/fast-browser)
-- 当前发布版本：`1.0.0`
+- 当前发布版本：`1.0.2`
 - Node 要求：`>=20`
 
 如果你在 `Node 18` 上遇到 `File is not defined`、`undici` 相关报错，这不是推荐支持环境；请升级到 Node 20+。

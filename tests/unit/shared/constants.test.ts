@@ -5,13 +5,16 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  getAppDir,
   getBrowserProfileDir,
   getBrowserSessionStateFilePath,
   getBrowserStateFilePath,
+  getCacheFilePath,
   getCustomAdaptersDir,
   getExecutionTraceFilePath,
   getGlobalAppDir,
   getProjectRoot,
+  getScreenshotsDir,
   getSessionFilePath,
   getWorkspaceInfo,
   resolveSessionId
@@ -104,6 +107,33 @@ describe("workspace root resolution", () => {
     expect(getWorkspaceInfo().resolutionSource).toBe("package");
   });
 
+  it("keeps package adapters in package mode while moving runtime state to FAST_BROWSER_HOME", async () => {
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-outside-"));
+    const browserHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-home-"));
+    tempDirs.push(outsideDir, browserHomeDir);
+
+    delete process.env.FAST_BROWSER_ROOT;
+    process.env.FAST_BROWSER_HOME = browserHomeDir;
+    process.env.FAST_BROWSER_SESSION_ID = "package-session";
+    process.chdir(outsideDir);
+
+    expect(getProjectRoot()).toBe(path.resolve(repoRoot));
+    expect(getCustomAdaptersDir()).toBe(path.join(path.resolve(repoRoot), "src", "adapters"));
+    expect(getAppDir()).toBe(path.resolve(browserHomeDir));
+    expect(getCacheFilePath()).toBe(path.join(path.resolve(browserHomeDir), "cache", "memory-cache.json"));
+    expect(getSessionFilePath()).toBe(path.join(path.resolve(browserHomeDir), "sessions", "package-session", "store.json"));
+    expect(getExecutionTraceFilePath()).toBe(path.join(path.resolve(browserHomeDir), "sessions", "package-session", "events.jsonl"));
+    expect(getWorkspaceInfo()).toMatchObject({
+      resolutionSource: "package",
+      projectRoot: path.resolve(repoRoot),
+      adaptersDir: path.join(path.resolve(repoRoot), "src", "adapters"),
+      appDir: path.resolve(browserHomeDir),
+      cacheFilePath: path.join(path.resolve(browserHomeDir), "cache", "memory-cache.json"),
+      sessionFilePath: path.join(path.resolve(browserHomeDir), "sessions", "package-session", "store.json"),
+      traceFilePath: path.join(path.resolve(browserHomeDir), "sessions", "package-session", "events.jsonl")
+    });
+  });
+
   it("uses session-scoped runtime files while keeping browser profile global", async () => {
     const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-root-"));
     const browserHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-home-"));
@@ -117,21 +147,26 @@ describe("workspace root resolution", () => {
 
     expect(getProjectRoot()).toBe(path.resolve(rootDir));
     expect(getGlobalAppDir()).toBe(path.resolve(browserHomeDir));
+    expect(getAppDir()).toBe(path.resolve(browserHomeDir));
     expect(getBrowserProfileDir()).toBe(path.join(path.resolve(browserHomeDir), "chrome-profile"));
     expect(getBrowserStateFilePath()).toBe(path.join(path.resolve(browserHomeDir), "sessions", "browser-state.json"));
     expect(getBrowserSessionStateFilePath()).toBe(path.join(path.resolve(browserHomeDir), "sessions", "browser", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771.json"));
     expect(getCustomAdaptersDir()).toBe(path.join(path.resolve(rootDir), "src", "adapters"));
-    expect(getSessionFilePath()).toBe(path.join(path.resolve(rootDir), ".fast-browser", "sessions", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771", "store.json"));
-    expect(getExecutionTraceFilePath()).toBe(path.join(path.resolve(rootDir), ".fast-browser", "sessions", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771", "events.jsonl"));
+    expect(getCacheFilePath()).toBe(path.join(path.resolve(browserHomeDir), "cache", "memory-cache.json"));
+    expect(getSessionFilePath()).toBe(path.join(path.resolve(browserHomeDir), "sessions", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771", "store.json"));
+    expect(getExecutionTraceFilePath()).toBe(path.join(path.resolve(browserHomeDir), "sessions", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771", "events.jsonl"));
+    expect(getScreenshotsDir()).toBe(path.join(path.resolve(browserHomeDir), "screenshots"));
     expect(getWorkspaceInfo()).toMatchObject({
       projectRoot: path.resolve(rootDir),
+      appDir: path.resolve(browserHomeDir),
       adaptersDir: path.join(path.resolve(rootDir), "src", "adapters"),
       sessionId: "codex:019d04e9-1098-75c0-8f7b-8b5b3db24771",
+      cacheFilePath: path.join(path.resolve(browserHomeDir), "cache", "memory-cache.json"),
       browserProfileDir: path.join(path.resolve(browserHomeDir), "chrome-profile"),
       browserStateFilePath: path.join(path.resolve(browserHomeDir), "sessions", "browser-state.json"),
       browserSessionStateFilePath: path.join(path.resolve(browserHomeDir), "sessions", "browser", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771.json"),
-      sessionFilePath: path.join(path.resolve(rootDir), ".fast-browser", "sessions", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771", "store.json"),
-      traceFilePath: path.join(path.resolve(rootDir), ".fast-browser", "sessions", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771", "events.jsonl")
+      sessionFilePath: path.join(path.resolve(browserHomeDir), "sessions", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771", "store.json"),
+      traceFilePath: path.join(path.resolve(browserHomeDir), "sessions", "codex-019d04e9-1098-75c0-8f7b-8b5b3db24771", "events.jsonl")
     });
   });
 

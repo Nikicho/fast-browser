@@ -103,19 +103,19 @@ export function resolveSessionId(
 export function getWorkspaceInfo(_startDir = process.cwd(), envRoot = process.env[FAST_BROWSER_ROOT_ENV], env = process.env) {
   const resolution = resolveProjectRootInfo(envRoot);
   const root = resolution.root;
-  const globalAppDir = getGlobalAppDir();
+  const globalAppDir = getGlobalAppDir(env[FAST_BROWSER_HOME_ENV]);
   const sessionId = resolveSessionId(env);
 
   return {
     projectRoot: root,
     resolutionSource: resolution.source,
     sessionId,
-    appDir: getAppDir(root),
-    sessionScopeDir: getSessionScopeDir(root, sessionId),
+    appDir: getAppDir(root, env[FAST_BROWSER_HOME_ENV]),
+    sessionScopeDir: getSessionScopeDir(root, sessionId, env[FAST_BROWSER_HOME_ENV]),
     adaptersDir: getCustomAdaptersDir(root),
-    cacheFilePath: getCacheFilePath(root),
-    sessionFilePath: getSessionFilePath(root, sessionId),
-    traceFilePath: getExecutionTraceFilePath(root, sessionId),
+    cacheFilePath: getCacheFilePath(root, env[FAST_BROWSER_HOME_ENV]),
+    sessionFilePath: getSessionFilePath(root, sessionId, env[FAST_BROWSER_HOME_ENV]),
+    traceFilePath: getExecutionTraceFilePath(root, sessionId, env[FAST_BROWSER_HOME_ENV]),
     browserProfileDir: getBrowserProfileDir(globalAppDir),
     browserStateFilePath: getBrowserStateFilePath(globalAppDir),
     browserSessionStateFilePath: getBrowserSessionStateFilePath(globalAppDir, sessionId),
@@ -123,8 +123,8 @@ export function getWorkspaceInfo(_startDir = process.cwd(), envRoot = process.en
   };
 }
 
-export function getAppDir(root = getProjectRoot()): string {
-  return path.join(root, APP_DIR_NAME);
+export function getAppDir(_root = getProjectRoot(), home = process.env[FAST_BROWSER_HOME_ENV]): string {
+  return getGlobalAppDir(home);
 }
 
 export function getGlobalAppDir(home = process.env[FAST_BROWSER_HOME_ENV]): string {
@@ -135,16 +135,16 @@ export function getGlobalAppDir(home = process.env[FAST_BROWSER_HOME_ENV]): stri
   return path.join(os.homedir(), APP_DIR_NAME);
 }
 
-export function getCacheFilePath(root = getProjectRoot()): string {
-  return path.join(getAppDir(root), "cache", "memory-cache.json");
+export function getCacheFilePath(root = getProjectRoot(), home = process.env[FAST_BROWSER_HOME_ENV]): string {
+  return path.join(getAppDir(root, home), "cache", "memory-cache.json");
 }
 
-export function getSessionScopeDir(root = getProjectRoot(), sessionId = resolveSessionId()): string {
-  return path.join(getAppDir(root), "sessions", getSessionScopeName(sessionId));
+export function getSessionScopeDir(root = getProjectRoot(), sessionId = resolveSessionId(), home = process.env[FAST_BROWSER_HOME_ENV]): string {
+  return path.join(getAppDir(root, home), "sessions", getSessionScopeName(sessionId));
 }
 
-export function getSessionFilePath(root = getProjectRoot(), sessionId = resolveSessionId()): string {
-  return path.join(getSessionScopeDir(root, sessionId), "store.json");
+export function getSessionFilePath(root = getProjectRoot(), sessionId = resolveSessionId(), home = process.env[FAST_BROWSER_HOME_ENV]): string {
+  return path.join(getSessionScopeDir(root, sessionId, home), "store.json");
 }
 
 export function getBrowserStateFilePath(appDir = getGlobalAppDir()): string {
@@ -159,8 +159,8 @@ export function getBrowserSessionStateFilePath(appDir = getGlobalAppDir(), sessi
   return path.join(appDir, "sessions", "browser", `${getSessionScopeName(sessionId)}.json`);
 }
 
-export function getExecutionTraceFilePath(root = getProjectRoot(), sessionId = resolveSessionId()): string {
-  return path.join(getSessionScopeDir(root, sessionId), "events.jsonl");
+export function getExecutionTraceFilePath(root = getProjectRoot(), sessionId = resolveSessionId(), home = process.env[FAST_BROWSER_HOME_ENV]): string {
+  return path.join(getSessionScopeDir(root, sessionId, home), "events.jsonl");
 }
 
 export function getBrowserProfileDir(appDir = getGlobalAppDir()): string {
@@ -171,8 +171,8 @@ export function getBrowserSessionProfileDir(appDir = getGlobalAppDir(), sessionI
   return path.join(appDir, "chrome-profiles", getSessionScopeName(sessionId));
 }
 
-export function getScreenshotsDir(root = getProjectRoot()): string {
-  return path.join(getAppDir(root), "screenshots");
+export function getScreenshotsDir(root = getProjectRoot(), home = process.env[FAST_BROWSER_HOME_ENV]): string {
+  return path.join(getAppDir(root, home), "screenshots");
 }
 
 export function getCustomAdaptersDir(root = getProjectRoot()): string {
@@ -195,12 +195,12 @@ export function getCaseFilePath(site: string, caseId: string, root = getProjectR
   return path.join(getAdapterCasesDir(site, root), `${caseId}.case.json`);
 }
 
-export function getSessionDraftCommandsDir(site: string, root = getProjectRoot(), sessionId = resolveSessionId()): string {
-  return path.join(getSessionScopeDir(root, sessionId), "drafts", "commands", site);
+export function getSessionDraftCommandsDir(site: string, root = getProjectRoot(), sessionId = resolveSessionId(), home = process.env[FAST_BROWSER_HOME_ENV]): string {
+  return path.join(getSessionScopeDir(root, sessionId, home), "drafts", "commands", site);
 }
 
-export function getCommandDraftFilePath(site: string, commandId: string, root = getProjectRoot(), sessionId = resolveSessionId()): string {
-  return path.join(getSessionDraftCommandsDir(site, root, sessionId), `${commandId}.command.draft.json`);
+export function getCommandDraftFilePath(site: string, commandId: string, root = getProjectRoot(), sessionId = resolveSessionId(), home = process.env[FAST_BROWSER_HOME_ENV]): string {
+  return path.join(getSessionDraftCommandsDir(site, root, sessionId, home), `${commandId}.command.draft.json`);
 }
 
 function resolveProjectRootInfo(envRoot?: string): { root: string; source: "env" | "package" } {

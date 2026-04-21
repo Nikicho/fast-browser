@@ -14,8 +14,14 @@ import { FileSessionStore } from "../../src/runtime/session-store";
 
 describe("trace -> command draft -> materialize chain", () => {
   const tempDirs: string[] = [];
+  const originalHome = process.env.FAST_BROWSER_HOME;
 
   afterEach(async () => {
+    if (originalHome === undefined) {
+      delete process.env.FAST_BROWSER_HOME;
+    } else {
+      process.env.FAST_BROWSER_HOME = originalHome;
+    }
     await Promise.all(tempDirs.splice(0).map(async (dir) => {
       await fs.rm(dir, { recursive: true, force: true });
     }));
@@ -23,7 +29,9 @@ describe("trace -> command draft -> materialize chain", () => {
 
   it("persists trace context, saves a command draft, and materializes patch suggestions", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-trace-command-"));
-    tempDirs.push(root);
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "fast-browser-home-"));
+    tempDirs.push(root, home);
+    process.env.FAST_BROWSER_HOME = home;
 
     const adapterDir = path.join(root, "src", "adapters", "demo");
     await fs.mkdir(path.join(adapterDir, "commands"), { recursive: true });
@@ -137,7 +145,7 @@ describe("trace -> command draft -> materialize chain", () => {
       ok: true,
       site: "demo",
       commandId: "search-query",
-      path: path.join(root, ".fast-browser", "sessions", "demo-a", "drafts", "commands", "demo", "search-query.command.draft.json"),
+      path: path.join(home, "sessions", "demo-a", "drafts", "commands", "demo", "search-query.command.draft.json"),
       nextSuggestedCommand: expect.stringContaining('fast-browser command materialize --draft')
     });
 
